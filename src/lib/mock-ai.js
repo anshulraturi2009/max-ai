@@ -25,10 +25,15 @@ const anshulPatterns = [
   "anshul kon hai",
   "anshul raturi kaun hai",
   "anshul raturi kon hai",
+  "anshul ratrui kaun hai",
+  "anshul ratrui kon hai",
   "who is anshul",
   "who is anshul raturi",
+  "who is anshul ratrui",
   "anshul raturi kaun",
   "anshul raturi kon",
+  "anshul ratrui kaun",
+  "anshul ratrui kon",
 ];
 
 const intentMap = [

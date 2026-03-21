@@ -22,8 +22,55 @@ const searchHintPatterns = [
   /\b(who is|what is|when is|where is)\b/iu,
 ];
 
+const selfIdentityPatterns = [
+  /\btum\s+kaun\s+ho\b/iu,
+  /\btum\s+kon\s+ho\b/iu,
+  /\baap\s+kaun\s+ho\b/iu,
+  /\baap\s+kon\s+ho\b/iu,
+  /\bap\s+kaun\s+ho\b/iu,
+  /\bap\s+kon\s+ho\b/iu,
+  /\bwho\s+are\s+you\b/iu,
+  /\bwhat\s+are\s+you\b/iu,
+];
+
+const creatorPatterns = [
+  /\bkisne\s+banaya\b/iu,
+  /\bbanaya\s+kisne\b/iu,
+  /\bwho\s+made\s+you\b/iu,
+  /\bwho\s+built\s+you\b/iu,
+  /\bwho\s+created\s+you\b/iu,
+  /\bkisne\s+create\s+kiya\b/iu,
+];
+
+const anshulPatterns = [
+  /\banshul\b.*\b(?:raturi|ratrui)\b/iu,
+  /\bwho\s+is\s+anshul\b/iu,
+  /\banshul\s+kaun\s+hai\b/iu,
+  /\banshul\s+kon\s+hai\b/iu,
+];
+
 export function predictSearchIntent(message = "") {
   return searchHintPatterns.some((pattern) => pattern.test(message));
+}
+
+function matchesPattern(message, patterns) {
+  return patterns.some((pattern) => pattern.test(message));
+}
+
+function createIdentityReply(message) {
+  if (matchesPattern(message, anshulPatterns)) {
+    return "Anshul Raturi is a young Indian founder. He belongs to Uttarakhand and he developed MAX AI.";
+  }
+
+  if (matchesPattern(message, selfIdentityPatterns)) {
+    return "Mai MAX AI hu. Mujhe Anshul Raturi ne banaya hai. Anshul Raturi is a young Indian founder and he belongs to Uttarakhand.";
+  }
+
+  if (matchesPattern(message, creatorPatterns)) {
+    return "Mujhe Anshul Raturi ne banaya hai. Anshul Raturi is a young Indian founder and he belongs to Uttarakhand.";
+  }
+
+  return "";
 }
 
 function buildEngineSnapshot(
@@ -180,6 +227,16 @@ export async function generateAssistantReply({
   history = [],
   signal,
 }) {
+  const identityReply = createIdentityReply(message);
+  if (identityReply) {
+    return {
+      reply: identityReply,
+      engine: buildEngineSnapshot("max-ai", "creator-identity", "ready", "identity"),
+      delayMs: 0,
+      activityType: "identity",
+    };
+  }
+
   if (!chatApiUrl) {
     return createFallbackReply({ message, personaId, history });
   }

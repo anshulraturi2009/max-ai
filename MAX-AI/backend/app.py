@@ -77,6 +77,10 @@ CREATOR_PATTERNS = (
     "who is anshul",
     "anshul raturi kaun",
     "anshul raturi kon",
+    "anshul ratrui kaun",
+    "anshul ratrui kon",
+    "who is anshul ratrui",
+    "who is anshul raturi",
 )
 
 SEARCH_HINT_PATTERNS = [
