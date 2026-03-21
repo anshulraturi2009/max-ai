@@ -1,3 +1,4 @@
+.env
 MAX-AI/backend/.env
 .env.development.local
 MAX-AI/backend/__pycache__/
