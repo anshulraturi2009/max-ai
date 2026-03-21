@@ -74,6 +74,11 @@ http://127.0.0.1:5000
 ```
 
 For Render, the same app automatically uses Render's `PORT` environment variable.
+Render start command should bind publicly:
+
+```bash
+gunicorn app:app --bind 0.0.0.0:$PORT
+```
 
 ## Frontend local dev
 
@@ -134,3 +139,9 @@ VITE_CHAT_API_URL=https://your-render-service.onrender.com/chat
 ```
 
 Then rebuild and redeploy Firebase Hosting so the live MAX AI site calls the Render backend.
+
+Current live backend URL:
+
+```text
+https://max-ai-api.onrender.com
+```

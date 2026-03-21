@@ -1,6 +1,8 @@
 import { createMockReply, getThinkingDelay } from "./mock-ai";
 
-const rawChatApiUrl = import.meta.env.VITE_CHAT_API_URL ?? "";
+const defaultProductionChatApiUrl = "https://max-ai-api.onrender.com/chat";
+const rawChatApiUrl =
+  import.meta.env.VITE_CHAT_API_URL ?? defaultProductionChatApiUrl;
 const chatApiUrl = rawChatApiUrl.trim();
 const chatApiBaseUrl = chatApiUrl.replace(/\/chat\/?$/u, "");
 
