@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: max-ai-backend
+    runtime: python
+    rootDir: MAX-AI/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: AI_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://max-ai-a030a.web.app,https://max-ai-a030a.firebaseapp.com
