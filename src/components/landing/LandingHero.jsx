@@ -12,8 +12,8 @@ import { usePerformance } from "../../context/PerformanceContext";
 const floatingCards = [
   {
     icon: Bot,
-    label: "Multi-persona intelligence",
-    copy: "Bhai se Mentor tak, har mode ka apna thinking layer.",
+    label: "Smart AI orchestration",
+    copy: "One consistent assistant voice with polished intelligence and clean UX.",
     className: "left-0 top-10 w-56",
   },
   {
@@ -56,7 +56,7 @@ export default function LandingHero({ onPrimary, onSecondary, isAuthed }) {
           </h1>
 
           <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300 sm:text-xl">
-            Premium landing. Intelligent chat. Multi-persona conversations.
+            Premium landing. Intelligent chat. Search-aware assistance.
             Futuristic product energy. Everything tuned to feel like a serious AI
             startup, not a plain chatbot demo.
           </p>
@@ -83,7 +83,7 @@ export default function LandingHero({ onPrimary, onSecondary, isAuthed }) {
 
           <div className="mt-10 grid gap-4 sm:grid-cols-3">
             {[
-              ["AI-ready", "Live persona engine"],
+              ["AI-ready", "Live search-aware engine"],
               ["Google-only", "Fast premium access"],
               ["Frontend-first", "Backend-ready later"],
             ].map(([title, copy]) => (

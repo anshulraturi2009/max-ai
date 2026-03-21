@@ -7,8 +7,8 @@ import InputBar from "../components/chat/InputBar";
 import MessageBubble from "../components/chat/MessageBubble";
 import Sidebar from "../components/chat/Sidebar";
 import TypingIndicator from "../components/chat/TypingIndicator";
+import { assistantProfile } from "../data/assistant";
 import { useAuth } from "../context/AuthContext";
-import { personaMap } from "../data/personas";
 import { useChatWorkspace } from "../hooks/useChatWorkspace";
 
 const starterPrompts = [
@@ -32,7 +32,6 @@ export default function ChatPage() {
     engine,
     createNewChat,
     setActiveChat,
-    selectPersona,
     clearCurrentChat,
     setDraftFromSuggestion,
     submitMessage,
@@ -41,9 +40,8 @@ export default function ChatPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const scrollContainerRef = useRef(null);
 
-  const activePersona =
-    personaMap[activeChat?.personaId || "other"] ?? personaMap.other;
   const isThinking = thinkingState?.chatId === activeChatId;
+  const thinkingStage = isThinking ? thinkingState?.stage || "thinking" : "thinking";
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -63,10 +61,14 @@ export default function ChatPage() {
 
   return (
     <div
-      className="relative h-screen overflow-hidden"
-      style={{ "--accent-rgb": activePersona.rgb }}
+      className="relative overflow-hidden"
+      style={{
+        "--accent-rgb": assistantProfile.rgb,
+        minHeight: "100dvh",
+        height: "100dvh",
+      }}
     >
-      <AmbientBackdrop accent={activePersona.rgb} />
+      <AmbientBackdrop accent={assistantProfile.rgb} />
 
       <div className="relative z-10 flex h-full overflow-hidden">
         <Sidebar
@@ -80,8 +82,6 @@ export default function ChatPage() {
           onNewChat={createNewChat}
           searchValue={searchValue}
           setSearchValue={setSearchValue}
-          activePersonaId={activePersona.id}
-          onSelectPersona={selectPersona}
           user={user}
           isAdmin={isAdmin}
           onSignOut={handleSignOut}
@@ -89,9 +89,9 @@ export default function ChatPage() {
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <ChatHeader
-            persona={activePersona}
             engine={engine}
             isThinking={isThinking}
+            thinkingStage={thinkingStage}
             onMenuToggle={() => setMobileSidebarOpen(true)}
             onClear={clearCurrentChat}
           />
@@ -99,9 +99,9 @@ export default function ChatPage() {
           <div className="min-h-0 flex-1 overflow-hidden">
             <div
               ref={scrollContainerRef}
-              className="h-full overflow-y-auto overscroll-y-contain px-4 py-6 sm:px-6"
+              className="h-full overflow-y-auto overscroll-y-contain px-3 py-4 sm:px-6 sm:py-6"
             >
-              <div className="mx-auto flex max-w-5xl flex-col gap-5 pb-8">
+              <div className="mx-auto flex max-w-5xl flex-col gap-4 pb-5 sm:gap-5 sm:pb-8">
                 {syncError ? (
                   <div className="rounded-[24px] border border-amber-300/15 bg-amber-300/10 px-5 py-4 text-sm leading-7 text-amber-100">
                     {syncError}
@@ -111,22 +111,18 @@ export default function ChatPage() {
                 {activeChat?.messages.length ? (
                   <AnimatePresence initial={false}>
                     {activeChat.messages.map((message) => (
-                      <MessageBubble
-                        key={message.id}
-                        message={message}
-                        persona={activePersona}
-                      />
+                      <MessageBubble key={message.id} message={message} />
                     ))}
-                    {isThinking ? <TypingIndicator persona={activePersona} /> : null}
+                    {isThinking ? <TypingIndicator /> : null}
                   </AnimatePresence>
                 ) : (
                   <motion.div
                     initial={{ opacity: 0, y: 18 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="panel panel-glow relative overflow-hidden p-6 sm:p-8"
+                    className="panel panel-glow relative overflow-hidden p-5 sm:p-8"
                   >
                     <div
-                      className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${activePersona.aura} opacity-70`}
+                      className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${assistantProfile.aura} opacity-70`}
                     />
                     <div className="relative">
                       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -136,14 +132,13 @@ export default function ChatPage() {
                             Intelligent welcome state
                           </div>
                           <h2 className="font-display text-3xl font-semibold text-white sm:text-4xl">
-                            Welcome to your {activePersona.name.toLowerCase()} AI
-                            workspace.
+                            Welcome to your MAX AI workspace.
                           </h2>
                           <p className="mt-4 text-sm leading-8 text-slate-200/90">
-                            {activePersona.description} Ask anything and{" "}
+                            {assistantProfile.description} Ask anything and{" "}
                             {engine?.status === "offline"
                               ? "the app will stay in ready mode until the live backend comes online."
-                              : `${engine?.label || "the live engine"} will respond with persona-aware tone and polished motion.`}
+                              : `${engine?.label || "the live engine"} will respond with polished motion and a consistent MAX AI voice.`}
                           </p>
                         </div>
 
@@ -152,7 +147,7 @@ export default function ChatPage() {
                             Current AI layer
                           </p>
                           <p className="mt-3 max-w-sm text-sm leading-7 text-white">
-                            {engine?.detail || activePersona.prompt}
+                            {engine?.detail || assistantProfile.prompt}
                           </p>
                         </div>
                       </div>
@@ -186,9 +181,6 @@ export default function ChatPage() {
             draft={draft}
             setDraft={setDraft}
             onSend={submitMessage}
-            personaId={activePersona.id}
-            onPersonaChange={selectPersona}
-            persona={activePersona}
             disabled={isThinking}
             onClear={clearCurrentChat}
           />

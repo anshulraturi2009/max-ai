@@ -13,7 +13,6 @@ import {
 import AmbientBackdrop from "../components/common/AmbientBackdrop";
 import { ADMIN_EMAIL } from "../constants/app";
 import { useAuth } from "../context/AuthContext";
-import { personaMap } from "../data/personas";
 import { useAdminConsole } from "../hooks/useAdminConsole";
 
 const NEW_USER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -262,7 +261,6 @@ export default function AdminPage() {
                 <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                   {conversations.length ? (
                     conversations.map((conversation) => {
-                      const persona = personaMap[conversation.personaId] ?? personaMap.other;
                       const selected = conversation.id === selectedConversationId;
 
                       return (
@@ -294,7 +292,7 @@ export default function AdminPage() {
                             {conversation.title}
                           </p>
                           <p className="mt-2 text-xs text-slate-400">
-                            {persona.name} | {conversation.messageCount || 0} messages
+                            AI thread | {conversation.messageCount || 0} messages
                           </p>
                           <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-300">
                             {conversation.lastMessagePreview || "No messages yet."}
@@ -322,8 +320,7 @@ export default function AdminPage() {
                   </div>
                   {selectedConversation ? (
                     <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
-                      {selectedConversation.userName} |{" "}
-                      {personaMap[selectedConversation.personaId]?.name || "Other"}
+                      {selectedConversation.userName} | AI thread
                     </div>
                   ) : null}
                 </div>

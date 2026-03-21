@@ -14,7 +14,7 @@ const reasons = [
   },
   {
     title: "Fast momentum by design",
-    copy: "Every decision, from auth to persona switching to empty states, is tuned to keep flow high.",
+    copy: "Every decision, from auth to empty states, is tuned to keep flow high.",
     icon: Zap,
   },
 ];

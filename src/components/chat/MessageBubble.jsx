@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { usePerformance } from "../../context/PerformanceContext";
+import { assistantProfile } from "../../data/assistant";
 
 function formatTime(timestamp) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -20,7 +21,7 @@ function MessageContent({ content }) {
   );
 }
 
-export default function MessageBubble({ message, persona }) {
+export default function MessageBubble({ message }) {
   const { isLowPerformance } = usePerformance();
   const isUser = message.role === "user";
 
@@ -32,18 +33,18 @@ export default function MessageBubble({ message, persona }) {
       className={`flex ${isUser ? "justify-end" : "justify-start"}`}
     >
       <div
-        className={`flex max-w-[92%] gap-3 sm:max-w-[78%] ${
+        className={`flex max-w-full gap-2.5 sm:max-w-[78%] sm:gap-3 ${
           isUser ? "flex-row-reverse" : ""
         }`}
       >
         <div
-          className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-white/10 ${
+          className={`grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-white/10 sm:h-10 sm:w-10 ${
             isUser ? "bg-white/[0.08]" : "bg-white/[0.05]"
           }`}
           style={
             isUser
               ? undefined
-              : { boxShadow: `0 0 40px rgba(${persona.rgb}, 0.12)` }
+              : { boxShadow: `0 0 40px rgba(${assistantProfile.rgb}, 0.12)` }
           }
         >
           <span
@@ -51,19 +52,19 @@ export default function MessageBubble({ message, persona }) {
               isUser ? "text-white" : "text-slate-100"
             }`}
           >
-            {isUser ? "You" : persona.name.slice(0, 2)}
+            {isUser ? "You" : "AI"}
           </span>
         </div>
 
         <div
-          className={`rounded-[28px] border px-5 py-4 text-sm text-slate-100 ${
+          className={`rounded-[24px] border px-4 py-3 text-sm text-slate-100 sm:rounded-[28px] sm:px-5 sm:py-4 ${
             isUser
               ? "message-bubble-user border-cyan-300/10"
               : "message-bubble-ai border-white/10"
           }`}
         >
           <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
-            <span>{isUser ? "You" : `MAX AI | ${persona.name}`}</span>
+            <span>{isUser ? "You" : "MAX AI"}</span>
             <span className="h-1 w-1 rounded-full bg-slate-600" />
             <span>{formatTime(message.timestamp)}</span>
           </div>

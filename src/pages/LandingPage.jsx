@@ -3,7 +3,6 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import AmbientBackdrop from "../components/common/AmbientBackdrop";
 import FeatureCards from "../components/landing/FeatureCards";
 import LandingHero from "../components/landing/LandingHero";
-import PersonaCards from "../components/landing/PersonaCards";
 import ProductFlow from "../components/landing/ProductFlow";
 import WhySection from "../components/landing/WhySection";
 import { useAuth } from "../context/AuthContext";
@@ -44,9 +43,6 @@ export default function LandingPage() {
             <a href="#features" className="text-sm text-slate-300 transition hover:text-white">
               Features
             </a>
-            <a href="#personas" className="text-sm text-slate-300 transition hover:text-white">
-              Personas
-            </a>
             <a href="#why" className="text-sm text-slate-300 transition hover:text-white">
               Why
             </a>
@@ -82,7 +78,6 @@ export default function LandingPage() {
           onSecondary={handleSecondary}
         />
         <FeatureCards />
-        <PersonaCards />
         <ProductFlow />
         <WhySection />
       </main>
@@ -94,8 +89,8 @@ export default function LandingPage() {
               MAX AI
             </p>
             <p className="mt-4 text-sm leading-7 text-slate-400">
-              Premium AI product design with futuristic energy, multi-persona
-              conversations, and backend-ready architecture.
+              Premium AI product design with futuristic energy, intelligent chat,
+              and backend-ready architecture.
             </p>
           </div>
 

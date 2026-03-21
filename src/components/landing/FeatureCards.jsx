@@ -1,18 +1,18 @@
 import { motion } from "framer-motion";
 import {
-  Blend,
   Gauge,
   HandCoins,
   Layers3,
+  SearchCheck,
   Sparkles,
   WandSparkles,
 } from "lucide-react";
 
 const features = [
   {
-    title: "Multi-persona conversations",
-    copy: "Switch energy instantly between Bhai, Mentor, Formal, Funny, and more.",
-    icon: Blend,
+    title: "Smart search-aware answers",
+    copy: "When the question needs fresh info, MAX AI can look things up and respond with better context.",
+    icon: SearchCheck,
   },
   {
     title: "Smart desi responses",
@@ -52,7 +52,7 @@ export default function FeatureCards() {
           </h2>
           <p className="mt-4 text-base leading-8 text-slate-300">
             MAX AI is meant to feel intelligent at every layer: brand,
-            interaction, personas, state transitions, and future architecture.
+            interaction, state transitions, and future architecture.
           </p>
         </div>
 

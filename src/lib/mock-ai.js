@@ -1,5 +1,36 @@
 import { personaMap } from "../data/personas";
 
+const selfIdentityPatterns = [
+  "tum kaun ho",
+  "tum kon ho",
+  "aap kaun ho",
+  "aap kon ho",
+  "ap kaun ho",
+  "ap kon ho",
+  "who are you",
+  "what are you",
+];
+
+const creatorPatterns = [
+  "kisne banaya",
+  "banaya kisne",
+  "who made you",
+  "who built you",
+  "who created you",
+  "kisne create kiya",
+];
+
+const anshulPatterns = [
+  "anshul kaun hai",
+  "anshul kon hai",
+  "anshul raturi kaun hai",
+  "anshul raturi kon hai",
+  "who is anshul",
+  "who is anshul raturi",
+  "anshul raturi kaun",
+  "anshul raturi kon",
+];
+
 const intentMap = [
   {
     id: "build",
@@ -210,6 +241,32 @@ function detectIntent(message) {
   return intentMap.find((intent) => intent.match.test(message)) ?? fallbackIntent;
 }
 
+function matchesAnyPattern(message, patterns) {
+  const normalized = message.trim().toLowerCase();
+  return patterns.some((pattern) => normalized.includes(pattern));
+}
+
+function buildIdentityReply(message) {
+  if (matchesAnyPattern(message, anshulPatterns)) {
+    return (
+      "Anshul Raturi ek young Indian founder hain aur Uttarakhand se belong karte hain. " +
+      "Unhone MAX AI banaya hai."
+    );
+  }
+
+  if (matchesAnyPattern(message, selfIdentityPatterns)) {
+    return (
+      "Mai MAX AI hu. Mujhe Anshul Raturi ne banaya hai. " +
+      "Wo Uttarakhand se belong karne wale ek young Indian founder hain."
+    );
+  }
+
+  return (
+    "Mujhe Anshul Raturi ne banaya hai. " +
+    "Wo Uttarakhand se belong karne wale ek young Indian founder hain."
+  );
+}
+
 function buildActionList(actions, personaId) {
   if (personaId === "formal") {
     return actions
@@ -225,6 +282,14 @@ export function getThinkingDelay(message) {
 }
 
 export function createMockReply({ message, personaId = "other", history = [] }) {
+  if (
+    matchesAnyPattern(message, selfIdentityPatterns) ||
+    matchesAnyPattern(message, creatorPatterns) ||
+    matchesAnyPattern(message, anshulPatterns)
+  ) {
+    return buildIdentityReply(message);
+  }
+
   const persona = personaMap[personaId] ?? personaMap.other;
   const style = personaStyles[persona.id] ?? personaStyles.other;
   const intent = detectIntent(message);

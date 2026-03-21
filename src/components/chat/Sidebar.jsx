@@ -10,7 +10,7 @@ import {
   Settings2,
   X,
 } from "lucide-react";
-import { personas, personaMap } from "../../data/personas";
+import { assistantProfile } from "../../data/assistant";
 import { cx } from "../../lib/cx";
 
 function formatChatTime(timestamp) {
@@ -61,8 +61,6 @@ function SidebarPanel({
   onNewChat,
   searchValue,
   setSearchValue,
-  activePersonaId,
-  onSelectPersona,
   user,
   isAdmin,
   onSignOut,
@@ -71,7 +69,7 @@ function SidebarPanel({
     <div
       className={cx(
         "flex h-full min-h-0 flex-col border-r border-white/10 bg-slate-950/85 backdrop-blur-2xl",
-        collapsed ? "w-[98px]" : "w-[320px]",
+        collapsed ? "w-[98px]" : "w-full lg:w-[320px]",
       )}
     >
       <div className="flex items-center justify-between px-4 pb-4 pt-5">
@@ -120,7 +118,7 @@ function SidebarPanel({
         <button
           type="button"
           onClick={() => {
-            onNewChat(activePersonaId);
+            onNewChat();
             closeMobile?.();
           }}
           className={cx(
@@ -150,66 +148,30 @@ function SidebarPanel({
       <div className="mt-5 flex-1 overflow-hidden px-3">
         <div className="h-full overflow-y-auto overscroll-y-contain pb-5">
           {!collapsed ? (
-            <div className="mb-5">
-              <p className="px-2 text-xs uppercase tracking-[0.24em] text-slate-500">
-                Persona quick switch
+            <div className="mb-5 rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                Workspace status
               </p>
-              <div className="mt-3 space-y-2">
-                {personas.map((persona) => {
-                  const active = persona.id === activePersonaId;
-
-                  return (
-                    <button
-                      key={persona.id}
-                      type="button"
-                      onClick={() => onSelectPersona(persona.id)}
-                      className={cx(
-                        "w-full rounded-[20px] border px-3 py-3 text-left transition",
-                        active
-                          ? "border-white/20 bg-white/[0.08]"
-                          : "border-white/5 bg-white/[0.03] hover:border-white/10 hover:bg-white/[0.06]",
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="h-3 w-3 rounded-full"
-                          style={{ backgroundColor: persona.accent }}
-                        />
-                        <div>
-                          <p className="text-sm font-semibold text-white">
-                            {persona.name}
-                          </p>
-                          <p className="text-xs text-slate-400">{persona.short}</p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+              <div className="mt-3 flex items-start gap-3">
+                <div
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10"
+                  style={{
+                    background: `linear-gradient(135deg, ${assistantProfile.accent}44, rgba(255,255,255,0.04))`,
+                  }}
+                >
+                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-white">
+                    AI
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Single MAX AI mode</p>
+                  <p className="mt-1 text-xs leading-6 text-slate-400">
+                    Cleaner chat flow, simpler UI, and one consistent assistant voice.
+                  </p>
+                </div>
               </div>
             </div>
-          ) : (
-            <div className="mb-5 space-y-3 px-1">
-              {personas.map((persona) => (
-                <button
-                  key={persona.id}
-                  type="button"
-                  onClick={() => onSelectPersona(persona.id)}
-                  className={cx(
-                    "grid h-12 w-12 place-items-center rounded-2xl border transition",
-                    persona.id === activePersonaId
-                      ? "border-white/20 bg-white/[0.08]"
-                      : "border-white/10 bg-white/[0.04]",
-                  )}
-                  title={persona.name}
-                >
-                  <span
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: persona.accent }}
-                  />
-                </button>
-              ))}
-            </div>
-          )}
+          ) : null}
 
           <div>
             {!collapsed ? (
@@ -221,7 +183,6 @@ function SidebarPanel({
             <div className="mt-3 space-y-2">
               {chats.length ? (
                 chats.map((chat) => {
-                  const chatPersona = personaMap[chat.personaId] ?? personaMap.other;
                   const active = chat.id === activeChatId;
 
                   return (
@@ -243,10 +204,10 @@ function SidebarPanel({
                       <div
                         className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 text-xs font-semibold uppercase tracking-[0.18em] text-white"
                         style={{
-                          background: `linear-gradient(135deg, ${chatPersona.accent}44, rgba(255,255,255,0.04))`,
+                          background: `linear-gradient(135deg, ${assistantProfile.accent}44, rgba(255,255,255,0.04))`,
                         }}
                       >
-                        {collapsed ? chat.title.slice(0, 1) : chatPersona.name.slice(0, 2)}
+                        {collapsed ? chat.title.slice(0, 1) : "AI"}
                       </div>
                       {!collapsed ? (
                         <div className="min-w-0 flex-1">
@@ -259,7 +220,7 @@ function SidebarPanel({
                             </span>
                           </div>
                           <p className="mt-1 truncate text-xs text-slate-400">
-                            {chatPersona.name} | {chat.messageCount || 0} messages
+                            AI thread | {chat.messageCount || 0} messages
                           </p>
                         </div>
                       ) : null}
@@ -367,6 +328,7 @@ export default function Sidebar(props) {
               exit={{ x: -28, opacity: 0 }}
               transition={{ duration: 0.2 }}
               className="fixed inset-y-0 left-0 z-50 lg:hidden"
+              style={{ width: "min(86vw, 320px)" }}
             >
               <SidebarPanel
                 {...props}

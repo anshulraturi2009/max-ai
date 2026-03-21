@@ -6,14 +6,16 @@ import {
   createConversation,
   subscribeToConversationMessages,
   subscribeToUserConversations,
-  updateConversationPersona,
   upsertUserProfile,
 } from "../lib/firestore";
 import {
   fetchChatEngineStatus,
   generateAssistantReply,
   getDefaultChatEngine,
+  predictSearchIntent,
 } from "../lib/chat-api";
+
+const DEFAULT_PERSONA_ID = "other";
 
 export function useChatWorkspace() {
   const { user } = useAuth();
@@ -138,7 +140,7 @@ export function useChatWorkspace() {
     setThinkingState(null);
   }
 
-  async function createNewChat(personaId = activeChat?.personaId ?? "other") {
+  async function createNewChat() {
     if (!user) {
       return;
     }
@@ -150,25 +152,15 @@ export function useChatWorkspace() {
 
     try {
       await upsertUserProfile(user);
-      const conversationId = await createConversation({ user, personaId });
+      const conversationId = await createConversation({
+        user,
+        personaId: DEFAULT_PERSONA_ID,
+      });
       if (conversationId) {
         setActiveChatId(conversationId);
       }
     } catch {
       setSyncError("New chat create nahi hua. Firestore permissions check karo.");
-    }
-  }
-
-  async function selectPersona(personaId) {
-    if (!activeChatId) {
-      await createNewChat(personaId);
-      return;
-    }
-
-    try {
-      await updateConversationPersona(activeChatId, personaId);
-    } catch {
-      setSyncError("Persona switch save nahi hua. Dubara try karo.");
     }
   }
 
@@ -190,7 +182,7 @@ export function useChatWorkspace() {
     setDraft(value);
   }
 
-  async function submitMessage(rawMessage, personaOverride) {
+  async function submitMessage(rawMessage) {
     const content = rawMessage.trim();
     if (!content || !user) {
       return;
@@ -209,7 +201,7 @@ export function useChatWorkspace() {
       if (!targetChatId) {
         targetChatId = await createConversation({
           user,
-          personaId: personaOverride ?? "other",
+          personaId: DEFAULT_PERSONA_ID,
         });
         if (!targetChatId) {
           throw new Error("Conversation could not be created.");
@@ -217,7 +209,7 @@ export function useChatWorkspace() {
         setActiveChatId(targetChatId);
       }
 
-      const personaId = personaOverride ?? targetChat?.personaId ?? "other";
+      const personaId = targetChat?.personaId ?? DEFAULT_PERSONA_ID;
       const currentMessageCount = targetChat?.messageCount ?? 0;
       const nextConversationTitle =
         currentMessageCount === 0
@@ -239,8 +231,8 @@ export function useChatWorkspace() {
       setDraft("");
       setThinkingState({
         chatId: targetChatId,
-        personaId,
         startedAt: Date.now(),
+        stage: predictSearchIntent(content) ? "searching" : "thinking",
       });
 
       controller = new AbortController();
@@ -325,7 +317,6 @@ export function useChatWorkspace() {
     engine,
     createNewChat,
     setActiveChat,
-    selectPersona,
     clearCurrentChat,
     setDraftFromSuggestion,
     submitMessage,

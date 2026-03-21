@@ -3,8 +3,8 @@ import { motion } from "framer-motion";
 const steps = [
   {
     index: "01",
-    title: "Choose your mode",
-    copy: "Pick the persona that matches the energy, tone, and support style you want.",
+    title: "Open your workspace",
+    copy: "Start a fresh thread in one clean MAX AI environment without extra mode switching.",
   },
   {
     index: "02",
