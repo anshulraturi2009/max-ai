@@ -15,4 +15,4 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: ALLOWED_ORIGINS
-        value: https://max-ai-a030a.web.app,https://max-ai-a030a.firebaseapp.com
+        value: https://max-ai-a030a.web.app,https://max-ai-a030a.firebaseapp.com,https://anshulraturi.me,https://www.anshulraturi.me

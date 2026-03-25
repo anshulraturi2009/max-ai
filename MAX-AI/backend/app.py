@@ -23,6 +23,12 @@ WEB_SEARCH_TIMEOUT_SECONDS = 18
 MAX_HISTORY_MESSAGES = 12
 DEFAULT_SERVER_PORT = 5000
 MAX_SEARCH_RESULTS = 5
+DEFAULT_ALLOWED_ORIGINS = (
+    "https://max-ai-a030a.web.app",
+    "https://max-ai-a030a.firebaseapp.com",
+    "https://anshulraturi.me",
+    "https://www.anshulraturi.me",
+)
 
 PERSONA_INSTRUCTIONS = {
     "bhai": (
@@ -183,14 +189,17 @@ def get_allowed_origin(request_origin: str | None) -> str:
         for item in os.getenv("ALLOWED_ORIGINS", "").split(",")
         if item.strip()
     ]
+    allowed_origins = list(
+        dict.fromkeys([*configured_origins, *DEFAULT_ALLOWED_ORIGINS])
+    )
 
-    if not configured_origins:
+    if not allowed_origins:
         return "*"
 
-    if request_origin and request_origin in configured_origins:
+    if request_origin and request_origin in allowed_origins:
         return request_origin
 
-    return configured_origins[0]
+    return allowed_origins[0]
 
 
 def load_system_prompt() -> str:
