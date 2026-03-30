@@ -11,24 +11,33 @@ const ACTIVE_USER_WINDOW_MS = 24 * 60 * 60 * 1000;
 export function useAdminConsole() {
   const [users, setUsers] = useState([]);
   const [conversations, setConversations] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
   const [selectedConversationId, setSelectedConversationId] = useState("");
   const [selectedMessages, setSelectedMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let pendingStreams = 2;
+    let usersLoaded = false;
+    let conversationsLoaded = false;
 
     function markLoaded() {
-      pendingStreams -= 1;
-      if (pendingStreams <= 0) {
+      if (usersLoaded && conversationsLoaded) {
         setLoading(false);
       }
     }
 
     const unsubscribeUsers = subscribeToAllUsers(
       (nextUsers) => {
+        usersLoaded = true;
         setUsers(nextUsers);
+        setSelectedUserId((currentId) => {
+          if (currentId && nextUsers.some((entry) => entry.id === currentId)) {
+            return currentId;
+          }
+
+          return nextUsers[0]?.id ?? "";
+        });
         markLoaded();
       },
       () => {
@@ -39,17 +48,8 @@ export function useAdminConsole() {
 
     const unsubscribeConversations = subscribeToAllConversations(
       (nextConversations) => {
+        conversationsLoaded = true;
         setConversations(nextConversations);
-        setSelectedConversationId((currentId) => {
-          if (
-            currentId &&
-            nextConversations.some((conversation) => conversation.id === currentId)
-          ) {
-            return currentId;
-          }
-
-          return nextConversations[0]?.id ?? "";
-        });
         markLoaded();
       },
       () => {
@@ -65,6 +65,33 @@ export function useAdminConsole() {
       unsubscribeConversations();
     };
   }, []);
+
+  const selectedUser =
+    users.find((entry) => entry.id === selectedUserId || entry.uid === selectedUserId) ??
+    null;
+
+  const userConversations = useMemo(() => {
+    if (!selectedUserId) {
+      return [];
+    }
+
+    return conversations
+      .filter((conversation) => conversation.userId === selectedUserId)
+      .sort((left, right) => right.updatedAt - left.updatedAt);
+  }, [conversations, selectedUserId]);
+
+  useEffect(() => {
+    setSelectedConversationId((currentId) => {
+      if (
+        currentId &&
+        userConversations.some((conversation) => conversation.id === currentId)
+      ) {
+        return currentId;
+      }
+
+      return userConversations[0]?.id ?? "";
+    });
+  }, [userConversations]);
 
   useEffect(() => {
     if (!selectedConversationId) {
@@ -86,7 +113,7 @@ export function useAdminConsole() {
   }, [selectedConversationId]);
 
   const selectedConversation =
-    conversations.find((conversation) => conversation.id === selectedConversationId) ??
+    userConversations.find((conversation) => conversation.id === selectedConversationId) ??
     null;
 
   const userConversationCounts = useMemo(
@@ -101,10 +128,10 @@ export function useAdminConsole() {
   const stats = useMemo(() => {
     const timestamp = Date.now();
     const newUsers = users.filter(
-      (user) => timestamp - user.createdAt <= NEW_USER_WINDOW_MS,
+      (entry) => timestamp - entry.createdAt <= NEW_USER_WINDOW_MS,
     ).length;
     const activeUsers = users.filter(
-      (user) => timestamp - user.lastSeenAt <= ACTIVE_USER_WINDOW_MS,
+      (entry) => timestamp - entry.lastSeenAt <= ACTIVE_USER_WINDOW_MS,
     ).length;
 
     return {
@@ -119,6 +146,9 @@ export function useAdminConsole() {
   return {
     users,
     conversations,
+    selectedUser,
+    selectedUserId,
+    userConversations,
     selectedConversation,
     selectedConversationId,
     selectedMessages,
@@ -126,6 +156,7 @@ export function useAdminConsole() {
     stats,
     loading,
     error,
+    setSelectedUserId,
     setSelectedConversationId,
   };
 }

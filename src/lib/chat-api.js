@@ -5,8 +5,10 @@ const rawChatApiUrl =
   import.meta.env.VITE_CHAT_API_URL ?? defaultProductionChatApiUrl;
 const chatApiUrl = rawChatApiUrl.trim();
 const chatApiBaseUrl = chatApiUrl.replace(/\/chat\/?$/u, "");
-const BACKEND_TIMEOUT_MS = 4000;
-const HEALTH_TIMEOUT_MS = 3000;
+const voiceApiUrl = chatApiUrl ? `${chatApiBaseUrl}/voice/tts` : "";
+const BACKEND_TIMEOUT_MS = 70000;
+const HEALTH_TIMEOUT_MS = 5000;
+const VOICE_TIMEOUT_MS = 45000;
 
 const mockEngine = {
   provider: "mock",
@@ -79,6 +81,16 @@ function buildEngineSnapshot(
   status = "ready",
   activityType = "thinking",
 ) {
+  if (status === "waking") {
+    return {
+      provider,
+      model,
+      status,
+      label: "Waking backend",
+      detail: "Render backend warm ho raha hai",
+    };
+  }
+
   if (provider === "gemini") {
     return {
       provider,
@@ -131,6 +143,22 @@ function buildEngineSnapshot(
   };
 }
 
+function buildLiveBackendError(error) {
+  if (error?.name === "AbortError") {
+    return new Error(
+      "MAX AI backend warm hone me zyada time le raha hai. Thoda wait karke phir try karo.",
+    );
+  }
+
+  if (typeof error?.message === "string" && error.message.trim()) {
+    return new Error(error.message.trim());
+  }
+
+  return new Error(
+    "MAX AI backend abhi reachable nahi hai. Thodi der baad phir try karo.",
+  );
+}
+
 function sanitizeHistory(history = []) {
   return history
     .map((message) => ({
@@ -158,6 +186,10 @@ export function getDefaultChatEngine() {
   }
 
   return mockEngine;
+}
+
+export function getUnavailableChatEngine() {
+  return buildEngineSnapshot("backend", "", "offline");
 }
 
 export function isLiveChatConfigured() {
@@ -200,7 +232,11 @@ export async function fetchChatEngineStatus(signal) {
       "ready",
       data.activityType,
     );
-  } catch {
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      return buildEngineSnapshot("backend", "", "waking");
+    }
+
     return buildEngineSnapshot("backend", "", "offline");
   } finally {
     window.clearTimeout(abortTimeout);
@@ -299,7 +335,64 @@ export async function generateAssistantReply({
       throw error;
     }
 
-    return createFallbackReply({ message, personaId, history });
+    throw buildLiveBackendError(error);
+  } finally {
+    window.clearTimeout(abortTimeout);
+    signal?.removeEventListener?.("abort", handleAbort);
+  }
+}
+
+export async function generateAssistantSpeech({ text, signal }) {
+  if (!voiceApiUrl) {
+    throw new Error("Voice backend configured nahi hai.");
+  }
+
+  const normalizedText = String(text ?? "").replace(/\s+/gu, " ").trim();
+  if (!normalizedText) {
+    throw new Error("Voice playback text missing hai.");
+  }
+
+  const controller = new AbortController();
+  const abortTimeout = window.setTimeout(() => {
+    controller.abort();
+  }, VOICE_TIMEOUT_MS);
+  const handleAbort = () => controller.abort();
+
+  if (signal) {
+    if (signal.aborted) {
+      controller.abort();
+    } else {
+      signal.addEventListener("abort", handleAbort, { once: true });
+    }
+  }
+
+  try {
+    const response = await fetch(voiceApiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text: normalizedText }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(
+        data?.error ||
+          `Voice backend request failed with status ${response.status}.`,
+      );
+    }
+
+    const audioBlob = await response.blob();
+    if (!audioBlob.size) {
+      throw new Error("Voice backend ne empty audio return ki.");
+    }
+
+    return {
+      audioBlob,
+      keyLabel: response.headers.get("X-MAX-AI-Voice-Key") || "",
+    };
   } finally {
     window.clearTimeout(abortTimeout);
     signal?.removeEventListener?.("abort", handleAbort);

@@ -100,11 +100,11 @@ const intentMap = [
 const fallbackIntent = {
   id: "general",
   insight:
-    "I can help here by pulling the question into a clear, useful response instead of giving a vague generic answer.",
+    "Share the exact context or outcome you want, and I will answer more directly.",
   actions: [
-    "Identify the exact outcome you want.",
-    "Simplify the path to the next meaningful action.",
-    "Keep the answer practical and usable immediately.",
+    "Tell me the exact task, problem, or decision.",
+    "Add any important context or constraint.",
+    "I will turn it into a direct next step or usable answer.",
   ],
 };
 
@@ -213,19 +213,19 @@ const personaStyles = {
   },
   other: {
     openers: [
-      "Here is a balanced take on it.",
-      "Let's make this practical and clear.",
-      "I can help you turn this into a usable next step.",
+      "Let's keep this simple and useful.",
+      "Here is the direct version.",
+      "I can turn this into a clearer next step.",
     ],
     bridges: [
-      "The simplest useful answer is usually the strongest starting point.",
-      "A clear response should help you move, not just think.",
-      "Let's focus on what gives the most value immediately.",
+      "The most useful answer here is the one you can act on immediately.",
+      "Let's focus on the exact result you want.",
+      "A direct answer will help more than generic advice here.",
     ],
     closers: [
-      "I can also make this more detailed, shorter, or more action-focused.",
-      "If you'd like, we can take this one layer deeper.",
-      "That should give you a strong starting direction.",
+      "If you want, I can make it shorter, sharper, or more detailed.",
+      "If you share one more detail, I can make this more exact.",
+      "That should be enough to move to the next step.",
     ],
   },
 };

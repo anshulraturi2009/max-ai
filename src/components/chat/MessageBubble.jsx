@@ -1,6 +1,4 @@
 import { motion } from "framer-motion";
-import { usePerformance } from "../../context/PerformanceContext";
-import { assistantProfile } from "../../data/assistant";
 
 function formatTime(timestamp) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -22,49 +20,31 @@ function MessageContent({ content }) {
 }
 
 export default function MessageBubble({ message }) {
-  const { isLowPerformance } = usePerformance();
   const isUser = message.role === "user";
 
   return (
     <motion.div
-      layout
-      initial={isLowPerformance ? false : { opacity: 0, y: 14 }}
-      animate={isLowPerformance ? undefined : { opacity: 1, y: 0 }}
+      layout="position"
+      initial={{ opacity: 0, y: 16, x: isUser ? 16 : -16, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -10, scale: 0.98 }}
+      transition={{
+        layout: { type: "spring", stiffness: 360, damping: 30 },
+        opacity: { duration: 0.18 },
+        x: { type: "spring", stiffness: 320, damping: 26 },
+        y: { type: "spring", stiffness: 320, damping: 26 },
+        scale: { duration: 0.18 },
+      }}
       className={`flex ${isUser ? "justify-end" : "justify-start"}`}
     >
-      <div
-        className={`flex max-w-full gap-2.5 sm:max-w-[78%] sm:gap-3 ${
-          isUser ? "flex-row-reverse" : ""
-        }`}
-      >
+      <div className={`max-w-full sm:max-w-[80%] ${isUser ? "text-right" : ""}`}>
         <div
-          className={`grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-white/10 sm:h-10 sm:w-10 ${
-            isUser ? "bg-white/[0.08]" : "bg-white/[0.05]"
-          }`}
-          style={
-            isUser
-              ? undefined
-              : { boxShadow: `0 0 40px rgba(${assistantProfile.rgb}, 0.12)` }
-          }
-        >
-          <span
-            className={`text-xs font-semibold uppercase tracking-[0.2em] ${
-              isUser ? "text-white" : "text-slate-100"
-            }`}
-          >
-            {isUser ? "You" : "AI"}
-          </span>
-        </div>
-
-        <div
-          className={`rounded-[24px] border px-4 py-3 text-sm text-slate-100 sm:rounded-[28px] sm:px-5 sm:py-4 ${
-            isUser
-              ? "message-bubble-user border-cyan-300/10"
-              : "message-bubble-ai border-white/10"
+          className={`rounded-2xl border px-4 py-3 text-left text-sm sm:px-5 sm:py-4 ${
+            isUser ? "message-bubble-user" : "message-bubble-ai"
           }`}
         >
-          <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
-            <span>{isUser ? "You" : "MAX AI"}</span>
+          <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+            <span>{isUser ? "You" : "AI"}</span>
             <span className="h-1 w-1 rounded-full bg-slate-600" />
             <span>{formatTime(message.timestamp)}</span>
           </div>

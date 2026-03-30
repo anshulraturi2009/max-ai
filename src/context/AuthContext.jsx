@@ -1,31 +1,51 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import {
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut,
-} from "firebase/auth";
-import { ADMIN_EMAIL, isAdminEmail } from "../constants/app";
-import { upsertUserProfile } from "../lib/firestore";
-import { auth, firebaseConfigured, googleProvider } from "../lib/firebase";
+import { ADMIN_EMAIL, AUTH_STORAGE_KEY, isAdminEmail } from "../constants/app";
+import { syncLoginShowcaseUser, upsertUserProfile } from "../lib/firestore";
+import { firebaseConfigured } from "../lib/firebase";
 
 const AuthContext = createContext(null);
+
+function createSessionId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `max-ai-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizeSessionUser(user) {
+  if (!user) {
+    return null;
+  }
+
+  return {
+    uid: user.uid || createSessionId(),
+    displayName: user.displayName?.trim() || "MAX AI User",
+    email: user.email?.trim() || "",
+    dob: user.dob || "",
+    phoneNumber: user.phoneNumber?.trim() || "",
+    photoURL: user.photoURL || "",
+  };
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!firebaseConfigured || !auth) {
+    if (typeof window === "undefined") {
       setLoading(false);
-      return undefined;
+      return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
-      setUser(nextUser);
+    try {
+      const savedUser = window.localStorage.getItem(AUTH_STORAGE_KEY);
+      setUser(savedUser ? normalizeSessionUser(JSON.parse(savedUser)) : null);
+    } catch {
+      setUser(null);
+    } finally {
       setLoading(false);
-    });
-
-    return unsubscribe;
+    }
   }, []);
 
   useEffect(() => {
@@ -34,22 +54,34 @@ export function AuthProvider({ children }) {
     }
 
     upsertUserProfile(user).catch(() => {});
+    syncLoginShowcaseUser(user).catch(() => {});
   }, [user]);
 
-  async function signInWithGoogle() {
-    if (!firebaseConfigured || !auth || !googleProvider) {
-      throw new Error("Firebase auth is not configured.");
+  async function signInWithProfile(profile) {
+    if (!firebaseConfigured) {
+      throw new Error("Firebase setup missing hai.");
     }
 
-    await signInWithPopup(auth, googleProvider);
+    const nextUser = normalizeSessionUser({
+      ...user,
+      ...profile,
+      uid: user?.uid || createSessionId(),
+    });
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser));
+    }
+
+    setUser(nextUser);
+    return nextUser;
   }
 
   async function signOutUser() {
-    if (!auth) {
-      return;
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
     }
 
-    await signOut(auth);
+    setUser(null);
   }
 
   const value = {
@@ -58,7 +90,7 @@ export function AuthProvider({ children }) {
     authConfigured: firebaseConfigured,
     adminEmail: ADMIN_EMAIL,
     isAdmin: isAdminEmail(user?.email),
-    signInWithGoogle,
+    signInWithProfile,
     signOutUser,
   };
 

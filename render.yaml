@@ -14,5 +14,19 @@ services:
         value: gemini-2.5-flash
       - key: GEMINI_API_KEY
         sync: false
+      - key: ELEVENLABS_API_KEY_PRIMARY
+        sync: false
+      - key: ELEVENLABS_API_KEY_SECONDARY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID
+        sync: false
+      - key: ELEVENLABS_VOICE_ID_PRIMARY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID_SECONDARY
+        sync: false
+      - key: ELEVENLABS_MODEL_ID
+        value: eleven_multilingual_v2
+      - key: ELEVENLABS_OUTPUT_FORMAT
+        value: mp3_44100_128
       - key: ALLOWED_ORIGINS
         value: https://max-ai-a030a.web.app,https://max-ai-a030a.firebaseapp.com,https://anshulraturi.me,https://www.anshulraturi.me

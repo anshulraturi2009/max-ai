@@ -1,21 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Bot, Sparkles } from "lucide-react";
-import AmbientBackdrop from "../components/common/AmbientBackdrop";
+import { AnimatePresence } from "framer-motion";
 import ChatHeader from "../components/chat/ChatHeader";
 import InputBar from "../components/chat/InputBar";
 import MessageBubble from "../components/chat/MessageBubble";
 import Sidebar from "../components/chat/Sidebar";
 import TypingIndicator from "../components/chat/TypingIndicator";
-import { assistantProfile } from "../data/assistant";
 import { useAuth } from "../context/AuthContext";
 import { useChatWorkspace } from "../hooks/useChatWorkspace";
-
-const starterPrompts = [
-  "Mere startup ke liye futuristic landing page ideas do",
-  "React aur Tailwind me premium dashboard ka structure batao",
-  "Mere next 30 days ke growth plan ko smart tareeke se design karo",
-];
+import { useVoiceCall } from "../hooks/useVoiceCall";
 
 export default function ChatPage() {
   const { user, isAdmin, signOutUser } = useAuth();
@@ -33,15 +25,17 @@ export default function ChatPage() {
     createNewChat,
     setActiveChat,
     clearCurrentChat,
-    setDraftFromSuggestion,
     submitMessage,
   } = useChatWorkspace();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const scrollContainerRef = useRef(null);
-
   const isThinking = thinkingState?.chatId === activeChatId;
   const thinkingStage = isThinking ? thinkingState?.stage || "thinking" : "thinking";
+  const voiceCall = useVoiceCall({
+    messages: activeChat?.messages || [],
+    isThinking,
+    onSend: submitMessage,
+  });
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -59,21 +53,18 @@ export default function ChatPage() {
     await signOutUser();
   }
 
-  return (
-    <div
-      className="relative overflow-hidden"
-      style={{
-        "--accent-rgb": assistantProfile.rgb,
-        minHeight: "100dvh",
-        height: "100dvh",
-      }}
-    >
-      <AmbientBackdrop accent={assistantProfile.rgb} />
+  function handleClearChat() {
+    if (!isAdmin) {
+      return;
+    }
 
-      <div className="relative z-10 flex h-full overflow-hidden">
+    clearCurrentChat();
+  }
+
+  return (
+    <div className="h-[100dvh] overflow-hidden bg-slate-950 text-slate-100">
+      <div className="flex h-full w-full overflow-hidden">
         <Sidebar
-          collapsed={sidebarCollapsed}
-          setCollapsed={setSidebarCollapsed}
           mobileOpen={mobileSidebarOpen}
           setMobileOpen={setMobileSidebarOpen}
           chats={filteredChats}
@@ -93,97 +84,88 @@ export default function ChatPage() {
             isThinking={isThinking}
             thinkingStage={thinkingStage}
             onMenuToggle={() => setMobileSidebarOpen(true)}
-            onClear={clearCurrentChat}
+            onNewChat={createNewChat}
+            onClear={handleClearChat}
+            canClear={isAdmin}
           />
+
+          {voiceCall.callActive ? (
+            <div className="border-b border-slate-800 bg-slate-950 px-4 py-3 sm:px-6">
+              <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-50">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300" />
+                    <span className="font-medium">
+                      Voice call {voiceCall.callStage === "speaking" ? "live" : "active"}
+                    </span>
+                  </div>
+                  <span className="text-xs uppercase tracking-[0.18em] text-emerald-200/80">
+                    {voiceCall.callStage}
+                  </span>
+                </div>
+
+                <p className="text-sm text-emerald-50/90">
+                  {voiceCall.feedback || "Phone button dobara dabao to call end ho jayegi."}
+                </p>
+
+                {voiceCall.transcript ? (
+                  <p className="rounded-xl border border-emerald-300/15 bg-slate-950/25 px-3 py-2 text-sm leading-6 text-emerald-50/85">
+                    {voiceCall.transcript}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           <div className="min-h-0 flex-1 overflow-hidden">
             <div
               ref={scrollContainerRef}
-              className="h-full overflow-y-auto overscroll-y-contain px-3 py-4 sm:px-6 sm:py-6"
+              className="h-full overflow-y-auto px-4 py-5 sm:px-6"
             >
-              <div className="mx-auto flex max-w-5xl flex-col gap-4 pb-5 sm:gap-5 sm:pb-8">
+              <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 pb-6">
                 {syncError ? (
-                  <div className="rounded-[24px] border border-amber-300/15 bg-amber-300/10 px-5 py-4 text-sm leading-7 text-amber-100">
+                  <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
                     {syncError}
                   </div>
                 ) : null}
 
                 {activeChat?.messages.length ? (
-                  <AnimatePresence initial={false}>
+                  <AnimatePresence initial={false} mode="popLayout">
                     {activeChat.messages.map((message) => (
                       <MessageBubble key={message.id} message={message} />
                     ))}
-                    {isThinking ? <TypingIndicator /> : null}
+                    {isThinking ? <TypingIndicator key="typing-indicator" /> : null}
                   </AnimatePresence>
                 ) : (
-                  <motion.div
-                    initial={{ opacity: 0, y: 18 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="panel panel-glow relative overflow-hidden p-5 sm:p-8"
-                  >
-                    <div
-                      className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${assistantProfile.aura} opacity-70`}
-                    />
-                    <div className="relative">
-                      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                        <div className="max-w-2xl">
-                          <div className="status-chip mb-5">
-                            <Bot className="h-3.5 w-3.5" />
-                            Intelligent welcome state
-                          </div>
-                          <h2 className="font-display text-3xl font-semibold text-white sm:text-4xl">
-                            Welcome to your MAX AI workspace.
-                          </h2>
-                          <p className="mt-4 text-sm leading-8 text-slate-200/90">
-                            {assistantProfile.description} Ask anything and{" "}
-                            {engine?.status === "offline"
-                              ? "the app will stay in ready mode until the live backend comes online."
-                              : `${engine?.label || "the live engine"} will respond with polished motion and a consistent MAX AI voice.`}
-                          </p>
-                        </div>
-
-                        <div className="rounded-[28px] border border-white/10 bg-black/20 px-5 py-4 backdrop-blur-xl">
-                          <p className="text-xs uppercase tracking-[0.24em] text-slate-300/80">
-                            Current AI layer
-                          </p>
-                          <p className="mt-3 max-w-sm text-sm leading-7 text-white">
-                            {engine?.detail || assistantProfile.prompt}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-8 grid gap-4 lg:grid-cols-3">
-                        {starterPrompts.map((prompt) => (
-                          <button
-                            key={prompt}
-                            type="button"
-                            onClick={() => setDraftFromSuggestion(prompt)}
-                            className="rounded-[24px] border border-white/10 bg-white/[0.06] p-5 text-left transition hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.1]"
-                          >
-                            <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-cyan-100/80">
-                              <Sparkles className="h-3.5 w-3.5" />
-                              Quick start
-                            </div>
-                            <p className="text-sm leading-7 text-slate-100">
-                              {prompt}
-                            </p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
+                  <div className="panel flex min-h-[320px] flex-col items-center justify-center px-6 text-center">
+                    <h2 className="text-2xl font-semibold text-white">
+                      Start a conversation
+                    </h2>
+                    <p className="mt-3 max-w-md text-sm leading-7 text-slate-400">
+                      Simple chat mode active. Message bhejo, voice use karo, ya files
+                      attach karo.
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
           </div>
 
-          <InputBar
-            draft={draft}
-            setDraft={setDraft}
-            onSend={submitMessage}
-            disabled={isThinking}
-            onClear={clearCurrentChat}
-          />
+          <div className="mx-auto w-full max-w-4xl">
+            <InputBar
+              draft={draft}
+              setDraft={setDraft}
+              onSend={submitMessage}
+              disabled={isThinking}
+              voiceCallActive={voiceCall.callActive}
+              voiceCallStage={voiceCall.callStage}
+              voiceCallSupported={voiceCall.isSupported}
+              voiceCallFeedback={voiceCall.feedback}
+              onToggleVoiceCall={voiceCall.toggleCall}
+              onClear={handleClearChat}
+              canClear={isAdmin}
+            />
+          </div>
         </main>
       </div>
     </div>

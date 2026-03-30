@@ -5,6 +5,7 @@ This backend powers MAX AI chat with a secure server-side provider layer.
 It now supports:
 - Gemini via `GEMINI_API_KEY`
 - Ollama fallback when Gemini is not configured
+- ElevenLabs TTS via backend-only API keys
 - persona-aware replies
 - optional multi-turn history
 
@@ -53,6 +54,15 @@ AI_PROVIDER=ollama
 OLLAMA_MODEL=llama3.2:1b
 ```
 
+Example ElevenLabs voice config:
+
+```env
+ELEVENLABS_API_KEY_PRIMARY=your_primary_key
+ELEVENLABS_API_KEY_SECONDARY=your_backup_key
+ELEVENLABS_MODEL_ID=eleven_multilingual_v2
+ELEVENLABS_OUTPUT_FORMAT=mp3_44100_128
+```
+
 4. If you use Ollama, make sure it is running:
 
 ```bash
@@ -95,6 +105,7 @@ Use `.env.development.local` for local Vite development so production hosting do
 - `GET /`
 - `GET /health`
 - `POST /chat`
+- `POST /voice/tts`
 
 ## Request body
 
@@ -128,6 +139,9 @@ This repo now includes a root [render.yaml](../render.yaml) Blueprint for a Pyth
 Important Render env vars:
 
 - `GEMINI_API_KEY` = your secret Gemini key
+- `ELEVENLABS_API_KEY_PRIMARY` = your main ElevenLabs secret key
+- `ELEVENLABS_API_KEY_SECONDARY` = optional backup ElevenLabs key
+- `ELEVENLABS_VOICE_ID` = optional shared voice id for both accounts
 - `AI_PROVIDER` = `gemini`
 - `GEMINI_MODEL` = `gemini-2.5-flash`
 - `ALLOWED_ORIGINS` = `https://max-ai-a030a.web.app,https://max-ai-a030a.firebaseapp.com`

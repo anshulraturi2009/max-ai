@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { useLayoutEffect, useRef } from "react";
 import {
   ArrowRight,
   AudioLines,
@@ -6,200 +6,250 @@ import {
   Orbit,
   Sparkles,
   Stars,
+  WandSparkles,
 } from "lucide-react";
+import MagneticButton from "../common/MagneticButton";
+import { gsap } from "../../lib/gsap";
 import { usePerformance } from "../../context/PerformanceContext";
 
-const floatingCards = [
+const commandStacks = [
+  "Realtime workspace memory",
+  "Search aware reasoning",
+  "Premium motion systems",
+];
+
+const orbitCards = [
   {
     icon: Bot,
-    label: "Smart AI orchestration",
-    copy: "One consistent assistant voice with polished intelligence and clean UX.",
-    className: "left-0 top-10 w-56",
+    label: "Focused AI core",
+    copy: "One clean assistant layer with strong context and premium responses.",
+    className: "left-0 top-14 w-56",
   },
   {
     icon: AudioLines,
-    label: "Responsive chat motion",
-    copy: "Typing, transitions, and flow tuned for premium feel.",
-    className: "right-0 top-40 w-60",
+    label: "Smooth motion shell",
+    copy: "GSAP rhythm, layered depth, and strong interaction polish.",
+    className: "right-0 top-24 w-56",
   },
   {
     icon: Orbit,
-    label: "Future-ready architecture",
-    copy: "Mock engine today, real AI backend tomorrow.",
-    className: "left-10 bottom-0 w-64",
+    label: "Future-ready depth",
+    copy: "Three.js aura gives the product a more serious visual identity.",
+    className: "left-10 bottom-6 w-60",
   },
 ];
 
 export default function LandingHero({ onPrimary, onSecondary, isAuthed }) {
   const { isLowPerformance, isMobile } = usePerformance();
+  const heroRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (isLowPerformance || !heroRef.current) {
+      return undefined;
+    }
+
+    const context = gsap.context(() => {
+      const timeline = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+      timeline
+        .fromTo(
+          "[data-hero-copy]",
+          { autoAlpha: 0, y: 42 },
+          { autoAlpha: 1, y: 0, duration: 0.82, stagger: 0.08 },
+        )
+        .fromTo(
+          "[data-hero-stat]",
+          { autoAlpha: 0, y: 28 },
+          { autoAlpha: 1, y: 0, duration: 0.58, stagger: 0.06 },
+          "-=0.46",
+        )
+        .fromTo(
+          "[data-hero-shell]",
+          { autoAlpha: 0, scale: 0.92, y: 32, rotateX: 10 },
+          { autoAlpha: 1, scale: 1, y: 0, rotateX: 0, duration: 1 },
+          "-=0.6",
+        )
+        .fromTo(
+          "[data-hero-orbit]",
+          { autoAlpha: 0, y: 20 },
+          { autoAlpha: 1, y: 0, duration: 0.6, stagger: 0.08 },
+          "-=0.68",
+        );
+    }, heroRef);
+
+    return () => context.revert();
+  }, [isLowPerformance]);
 
   return (
-    <section className="relative overflow-hidden px-4 pb-16 pt-24 sm:px-6 lg:px-10 lg:pb-28 lg:pt-32">
-      <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
-        <motion.div
-          initial={isLowPerformance ? false : { opacity: 0, y: 28 }}
-          animate={isLowPerformance ? undefined : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.55 }}
-          className="relative z-10"
-        >
-          <div className="status-chip mb-6">
+    <section
+      ref={heroRef}
+      className="relative overflow-hidden px-4 pb-18 pt-24 sm:px-6 lg:px-10 lg:pb-28 lg:pt-28"
+    >
+      <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1.02fr_0.98fr] lg:gap-16">
+        <div className="relative z-10">
+          <div data-hero-copy className="section-eyebrow">
             <Sparkles className="h-3.5 w-3.5" />
-            Premium Desi AI Platform
+            MAX AI cinematic workspace
           </div>
 
-          <h1 className="max-w-4xl font-display text-4xl font-semibold leading-[1.02] text-white sm:text-6xl lg:text-7xl">
-            MAX AI feels like the{" "}
-            <span className="bg-gradient-to-r from-cyan-200 via-white to-blue-200 bg-clip-text text-transparent">
-              next AI workspace
-            </span>{" "}
-            built for modern India.
+          <h1
+            data-hero-copy
+            className="mt-7 max-w-5xl font-display text-5xl font-semibold leading-[0.96] text-white sm:text-6xl lg:text-[5.4rem]"
+          >
+            A premium AI command center with{" "}
+            <span className="display-gradient bg-clip-text text-transparent">
+              smooth motion, spatial depth, and clean usability
+            </span>
+            .
           </h1>
 
-          <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300 sm:text-xl">
-            Premium landing. Intelligent chat. Search-aware assistance.
-            Futuristic product energy. Everything tuned to feel like a serious AI
-            startup, not a plain chatbot demo.
+          <p
+            data-hero-copy
+            className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-xl sm:leading-9"
+          >
+            MAX AI now leans into a sharper product identity: cinematic visuals,
+            guided workflows, ambient 3D energy, and an interface that feels
+            powerful without becoming hard to use.
           </p>
 
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-            <button
-              type="button"
-              onClick={onPrimary}
-              className="group inline-flex items-center justify-center gap-3 rounded-full bg-white px-7 py-4 text-sm font-semibold text-slate-950 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_60px_rgba(255,255,255,0.15)]"
-            >
-              {isAuthed ? "Open Workspace" : "Start Chatting"}
-              <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-            </button>
-
-            <button
-              type="button"
-              onClick={onSecondary}
-              className="inline-flex items-center justify-center gap-3 rounded-full border border-white/10 bg-white/[0.05] px-7 py-4 text-sm font-semibold text-white transition duration-300 hover:border-white/20 hover:bg-white/[0.08]"
-            >
-              Explore Features
-              <Stars className="h-4 w-4" />
-            </button>
+          <div data-hero-copy className="mt-8 flex flex-wrap gap-3">
+            {commandStacks.map((stack) => (
+              <span key={stack} className="command-chip">
+                <Stars className="h-3.5 w-3.5 text-cyan-200" />
+                {stack}
+              </span>
+            ))}
           </div>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          <div data-hero-copy className="mt-10 flex flex-col gap-4 sm:flex-row">
+            <MagneticButton
+              type="button"
+              onClick={onPrimary}
+              className="glass-button glass-button-primary"
+            >
+              {isAuthed ? "Open premium workspace" : "Launch MAX AI"}
+              <ArrowRight className="h-4 w-4" />
+            </MagneticButton>
+
+            <MagneticButton
+              type="button"
+              onClick={onSecondary}
+              className="glass-button"
+              strength={14}
+            >
+              Explore motion system
+              <WandSparkles className="h-4 w-4" />
+            </MagneticButton>
+          </div>
+
+          <div className="hero-stats mt-12 grid gap-4 sm:grid-cols-3">
             {[
-              ["AI-ready", "Live search-aware engine"],
-              ["Google-only", "Fast premium access"],
-              ["Frontend-first", "Backend-ready later"],
+              ["3D depth", "Ambient Three.js layer tuned for premium product presence."],
+              ["Smooth flow", "GSAP-led motion makes transitions feel intentional."],
+              ["Clean usage", "Hierarchy stays readable even with richer visuals."],
             ].map(([title, copy]) => (
               <div
                 key={title}
-                className="rounded-[24px] border border-white/10 bg-white/[0.04] px-5 py-4 backdrop-blur-xl"
+                data-hero-stat
+                className="metric-tile"
               >
-                <p className="text-xs uppercase tracking-[0.26em] text-cyan-200/90">
+                <p className="text-xs uppercase tracking-[0.26em] text-cyan-100/90">
                   {title}
                 </p>
-                <p className="mt-2 text-sm text-slate-300">{copy}</p>
+                <p className="mt-2 text-sm leading-7 text-slate-300">{copy}</p>
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={isLowPerformance ? false : { opacity: 0, scale: 0.96, y: 20 }}
-          animate={isLowPerformance ? undefined : { opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.65, delay: 0.05 }}
+        <div
+          data-hero-shell
           className={`relative mx-auto w-full ${
-            isMobile ? "h-[300px] max-w-[360px]" : "h-[620px] max-w-[560px]"
+            isMobile ? "h-[420px] max-w-[400px]" : "h-[640px] max-w-[620px]"
           }`}
         >
-          <div className="absolute inset-[14%] rounded-full border border-cyan-300/20 bg-cyan-400/5 blur-2xl" />
-          {!isLowPerformance ? (
-            <>
-              <div className="neural-ring absolute left-1/2 top-1/2 h-[440px] w-[440px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/[0.02]" />
-              <div className="neural-ring absolute left-1/2 top-1/2 h-[320px] w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/[0.02]" />
-            </>
-          ) : null}
-          <div
-            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-gradient-to-br from-cyan-300/20 via-white/8 to-blue-500/20 ${
-              isMobile ? "h-[132px] w-[132px]" : "h-[180px] w-[180px]"
-            }`}
-          />
-          <div
-            className={`absolute left-1/2 top-1/2 grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/10 bg-slate-950/70 ${
-              isMobile ? "h-20 w-20" : "h-24 w-24"
-            }`}
-          >
-            <div className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-cyan-300/90 to-blue-500/90 text-slate-950">
-              <Sparkles className="h-6 w-6" />
-            </div>
-          </div>
+          <div className="premium-card mesh-panel absolute inset-0 overflow-hidden p-6 sm:p-7">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_22%,rgba(255,255,255,0.14),transparent_20%),linear-gradient(180deg,rgba(255,255,255,0.05),transparent_18%)]" />
+            <div className="absolute inset-[10%] rounded-[34px] border border-white/10 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.06),transparent_64%)]" />
+            {!isLowPerformance ? (
+              <>
+                <div className="neural-ring absolute left-1/2 top-[48%] h-[460px] w-[460px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-80" />
+                <div className="neural-ring absolute left-1/2 top-[48%] h-[290px] w-[290px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-65" />
+              </>
+            ) : null}
 
-          {!isLowPerformance &&
-            !isMobile &&
-            floatingCards.map((card, index) => {
-            const Icon = card.icon;
+            <div className="relative flex h-full flex-col justify-between">
+              <div className="flex items-center justify-between gap-3">
+                <div className="section-eyebrow">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Premium shell preview
+                </div>
+                <span className="status-chip">
+                  <span className="h-2 w-2 rounded-full bg-emerald-300" />
+                  Motion synced
+                </span>
+              </div>
 
-            return (
-              <motion.div
-                key={card.label}
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
-                className={`panel absolute ${card.className} animate-float p-4`}
-                style={{ animationDelay: `${index * 0.6}s` }}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/[0.08] text-cyan-200">
-                    <Icon className="h-5 w-5" />
+              <div className="relative mx-auto flex w-full max-w-[360px] flex-1 items-center justify-center">
+                <div className="absolute h-[220px] w-[220px] rounded-full border border-cyan-200/15 bg-cyan-300/10 blur-3xl" />
+                <div className="absolute h-[250px] w-[250px] rounded-full border border-white/10" />
+                <div className="absolute h-[320px] w-[320px] rounded-full border border-white/8" />
+                <div className="absolute h-[120px] w-[120px] rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(223,248,255,0.92),rgba(142,228,255,0.85))] shadow-[0_25px_60px_rgba(114,224,255,0.35)]" />
+                <div className="absolute h-[74px] w-[74px] rounded-[24px] border border-white/15 bg-slate-950/90" />
+                <div className="absolute inset-x-10 bottom-8 rounded-[28px] border border-white/10 bg-slate-950/65 px-5 py-4 backdrop-blur-xl">
+                  <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                    <span>Workspace signal</span>
+                    <span>Live</span>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">
-                      {card.label}
-                    </p>
-                    <p className="mt-1 text-xs leading-6 text-slate-300">
-                      {card.copy}
-                    </p>
+                  <div className="mt-4 space-y-3">
+                    {[84, 66, 90].map((width, index) => (
+                      <div key={width} className="h-2.5 rounded-full bg-white/[0.06]">
+                        <div
+                          className={`shimmer-line h-full rounded-full ${
+                            isLowPerformance ? "" : "animate-shimmer"
+                          }`}
+                          style={{
+                            width: `${width}%`,
+                            animationDelay: `${index * 0.5}s`,
+                          }}
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </motion.div>
-            );
-            })}
+              </div>
 
-          <div
-            className={`absolute rounded-[28px] border border-cyan-300/10 bg-slate-950/70 px-4 py-4 backdrop-blur-xl sm:px-6 sm:py-5 ${
-              isMobile ? "inset-x-4 bottom-4" : "inset-x-20 bottom-10"
-            }`}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <span className="text-xs uppercase tracking-[0.28em] text-cyan-200/80">
-                Neural activity
-              </span>
-              <span className="status-chip">
-                <span className="h-2 w-2 rounded-full bg-emerald-300" />
-                AI ready
-              </span>
-            </div>
-            <div className="space-y-3">
-              <div className="h-3 rounded-full bg-white/[0.06]">
-                <div
-                  className={`shimmer-line h-full w-3/4 rounded-full ${
-                    isLowPerformance ? "" : "animate-shimmer"
-                  }`}
-                />
-              </div>
-              <div className="h-3 rounded-full bg-white/[0.06]">
-                <div
-                  className={`shimmer-line h-full w-2/3 rounded-full ${
-                    isLowPerformance ? "" : "animate-shimmer"
-                  }`}
-                />
-              </div>
-              <div className="h-3 rounded-full bg-white/[0.06]">
-                <div
-                  className={`shimmer-line h-full w-5/6 rounded-full ${
-                    isLowPerformance ? "" : "animate-shimmer"
-                  }`}
-                />
-              </div>
+              {!isLowPerformance && !isMobile
+                ? orbitCards.map((card, index) => {
+                    const Icon = card.icon;
+
+                    return (
+                      <div
+                        key={card.label}
+                        data-hero-orbit
+                        className={`premium-card absolute ${card.className} animate-float p-4`}
+                        style={{ animationDelay: `${index * 0.7}s` }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/[0.08] text-cyan-200">
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-white">
+                              {card.label}
+                            </p>
+                            <p className="mt-1 text-xs leading-6 text-slate-300">
+                              {card.copy}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                : null}
             </div>
           </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

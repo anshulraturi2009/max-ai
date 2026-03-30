@@ -2,20 +2,33 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 
-const LandingPage = lazy(() => import("./pages/LandingPage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 
 function GuardScreen({ label }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-base text-white">
-      <div className="panel panel-glow flex items-center gap-3 px-5 py-4 text-sm text-slate-200">
-        <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-cyan-300" />
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-100">
+      <div className="panel flex items-center gap-3 px-5 py-4 text-sm">
+        <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400" />
         {label}
       </div>
     </div>
   );
+}
+
+function RootRoute() {
+  const { user, loading, authConfigured } = useAuth();
+
+  if (loading) {
+    return <GuardScreen label="Loading MAX AI..." />;
+  }
+
+  if (!authConfigured || !user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  return <Navigate to="/app" replace />;
 }
 
 function ProtectedRoute({ children }) {
@@ -56,7 +69,7 @@ export default function App() {
   return (
     <Suspense fallback={<GuardScreen label="Loading MAX AI..." />}>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<RootRoute />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route
           path="/app"
@@ -74,7 +87,7 @@ export default function App() {
             </AdminRoute>
           }
         />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<RootRoute />} />
       </Routes>
     </Suspense>
   );

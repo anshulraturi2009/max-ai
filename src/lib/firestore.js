@@ -9,6 +9,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -21,6 +22,8 @@ import { firebaseApp } from "./firebase";
 const USERS_COLLECTION = "users";
 const CONVERSATIONS_COLLECTION = "conversations";
 const MESSAGES_COLLECTION = "messages";
+const PUBLIC_SITE_COLLECTION = "publicSite";
+const LOGIN_SHOWCASE_DOC = "loginShowcase";
 
 export const db = firebaseApp ? getFirestore(firebaseApp) : null;
 
@@ -82,6 +85,23 @@ function mapUser(snapshot) {
   };
 }
 
+function normalizeShowcaseUsers(users = []) {
+  if (!Array.isArray(users)) {
+    return [];
+  }
+
+  return users
+    .filter((entry) => entry && typeof entry === "object")
+    .map((entry) => ({
+      uid: entry.uid ?? "",
+      displayName: entry.displayName ?? "MAX AI User",
+      photoURL: entry.photoURL ?? "",
+      seenAtMs: typeof entry.seenAtMs === "number" ? entry.seenAtMs : 0,
+    }))
+    .sort((left, right) => right.seenAtMs - left.seenAtMs)
+    .slice(0, 3);
+}
+
 export async function upsertUserProfile(user) {
   if (!db || !user) {
     return;
@@ -95,6 +115,8 @@ export async function upsertUserProfile(user) {
     email: user.email ?? "",
     emailLower: (user.email ?? "").toLowerCase(),
     displayName: user.displayName ?? "MAX AI User",
+    dob: user.dob ?? "",
+    phoneNumber: user.phoneNumber ?? "",
     photoURL: user.photoURL ?? "",
     role: isAdminEmail(user.email) ? "admin" : "user",
     lastSeenAt: serverTimestamp(),
@@ -117,6 +139,39 @@ export async function upsertUserProfile(user) {
   );
 }
 
+export async function syncLoginShowcaseUser(user) {
+  if (!db || !user) {
+    return;
+  }
+
+  const showcaseRef = doc(db, PUBLIC_SITE_COLLECTION, LOGIN_SHOWCASE_DOC);
+  const timestampMs = nowMs();
+  const nextUser = {
+    uid: user.uid,
+    displayName: user.displayName ?? "MAX AI User",
+    photoURL: user.photoURL ?? "",
+    seenAtMs: timestampMs,
+  };
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(showcaseRef);
+    const currentUsers = normalizeShowcaseUsers(snapshot.data()?.users);
+    const nextUsers = [
+      nextUser,
+      ...currentUsers.filter((entry) => entry.uid !== user.uid),
+    ].slice(0, 3);
+
+    transaction.set(
+      showcaseRef,
+      {
+        users: nextUsers,
+        updatedAtMs: timestampMs,
+      },
+      { merge: true },
+    );
+  });
+}
+
 export async function createConversation({ user, personaId }) {
   if (!db || !user) {
     return null;
@@ -133,6 +188,7 @@ export async function createConversation({ user, personaId }) {
     userPhotoURL: user.photoURL ?? "",
     title: "Fresh thread",
     personaId,
+    workspaceContext: "",
     status: "active",
     messageCount: 0,
     lastMessagePreview: "",
@@ -160,12 +216,28 @@ export async function updateConversationPersona(conversationId, personaId) {
   });
 }
 
+export async function updateConversationWorkspaceContext(
+  conversationId,
+  workspaceContext,
+) {
+  if (!db || !conversationId) {
+    return;
+  }
+
+  await updateDoc(doc(db, CONVERSATIONS_COLLECTION, conversationId), {
+    workspaceContext: workspaceContext?.trim() || "",
+    updatedAt: serverTimestamp(),
+    updatedAtMs: nowMs(),
+  });
+}
+
 export async function appendConversationMessage({
   conversationId,
   conversationTitle,
   messageCount = 0,
   role,
   content,
+  clientTag = "",
   personaId,
   user,
 }) {
@@ -183,6 +255,7 @@ export async function appendConversationMessage({
   batch.set(messageRef, {
     role,
     content: content.trim(),
+    clientTag,
     personaId,
     authorId: role === "user" ? user?.uid ?? "user" : "max-ai",
     authorName:
@@ -306,6 +379,23 @@ export function subscribeToAllConversations(onData, onError) {
         .map(mapConversation)
         .sort((left, right) => right.updatedAt - left.updatedAt);
       onData(conversations);
+    },
+    onError,
+  );
+}
+
+export function subscribeToLoginShowcase(onData, onError) {
+  if (!db) {
+    onData([]);
+    return () => {};
+  }
+
+  const showcaseRef = doc(db, PUBLIC_SITE_COLLECTION, LOGIN_SHOWCASE_DOC);
+
+  return onSnapshot(
+    showcaseRef,
+    (snapshot) => {
+      onData(normalizeShowcaseUsers(snapshot.data()?.users));
     },
     onError,
   );

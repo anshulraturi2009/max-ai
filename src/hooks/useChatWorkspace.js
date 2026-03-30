@@ -6,53 +6,125 @@ import {
   createConversation,
   subscribeToConversationMessages,
   subscribeToUserConversations,
+  updateConversationPersona,
+  updateConversationWorkspaceContext,
   upsertUserProfile,
 } from "../lib/firestore";
 import {
   fetchChatEngineStatus,
   generateAssistantReply,
   getDefaultChatEngine,
+  getUnavailableChatEngine,
+  isLiveChatConfigured,
   predictSearchIntent,
 } from "../lib/chat-api";
 
 const DEFAULT_PERSONA_ID = "other";
+const TYPING_CLEAR_DELAY_MS = 120;
+
+function createClientTag(prefix = "message") {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export function useChatWorkspace() {
   const { user } = useAuth();
   const [chats, setChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState("");
   const [activeMessages, setActiveMessages] = useState([]);
+  const [optimisticMessages, setOptimisticMessages] = useState([]);
   const [searchValue, setSearchValue] = useState("");
   const [draft, setDraft] = useState("");
+  const [workspacePersonaId, setWorkspacePersonaId] = useState(DEFAULT_PERSONA_ID);
+  const [workspaceContext, setWorkspaceContext] = useState("");
   const [thinkingState, setThinkingState] = useState(null);
   const [syncError, setSyncError] = useState("");
   const [engine, setEngine] = useState(getDefaultChatEngine);
   const timeoutRef = useRef(null);
   const requestControllerRef = useRef(null);
+  const enginePollTimeoutRef = useRef(null);
   const selectedChat = chats.find((chat) => chat.id === activeChatId) ?? null;
   const activeChat = selectedChat
     ? {
         ...selectedChat,
-        messages: activeMessages,
+        messages: [
+          ...activeMessages,
+          ...optimisticMessages
+            .filter((message) => message.chatId === selectedChat.id)
+            .sort((left, right) => left.timestamp - right.timestamp),
+        ],
       }
     : chats[0]
       ? {
           ...chats[0],
-          messages: chats[0].id === activeChatId ? activeMessages : [],
+          messages:
+            chats[0].id === activeChatId
+              ? [
+                  ...activeMessages,
+                  ...optimisticMessages
+                    .filter((message) => message.chatId === activeChatId)
+                    .sort((left, right) => left.timestamp - right.timestamp),
+                ]
+              : [],
         }
       : null;
 
   useEffect(() => {
-    const controller = new AbortController();
+    if (!activeChat) {
+      return;
+    }
 
-    fetchChatEngineStatus(controller.signal)
-      .then((nextEngine) => {
+    setWorkspacePersonaId(activeChat.personaId || DEFAULT_PERSONA_ID);
+    setWorkspaceContext(activeChat.workspaceContext || "");
+  }, [activeChat]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let controller = null;
+
+    const syncEngineStatus = async () => {
+      if (cancelled) {
+        return;
+      }
+
+      controller = new AbortController();
+
+      try {
+        const nextEngine = await fetchChatEngineStatus(controller.signal);
+        if (cancelled) {
+          return;
+        }
+
         setEngine(nextEngine);
-      })
-      .catch(() => {});
+
+        if (nextEngine.status === "waking") {
+          enginePollTimeoutRef.current = window.setTimeout(() => {
+            syncEngineStatus();
+          }, 10000);
+        }
+      } catch {
+        if (!cancelled) {
+          setEngine(getUnavailableChatEngine());
+        }
+      }
+    };
+
+    syncEngineStatus();
 
     return () => {
-      controller.abort();
+      cancelled = true;
+
+      if (controller) {
+        controller.abort();
+      }
+
+      if (enginePollTimeoutRef.current) {
+        window.clearTimeout(enginePollTimeoutRef.current);
+        enginePollTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -99,6 +171,21 @@ export function useChatWorkspace() {
       activeChatId,
       (messages) => {
         setActiveMessages(messages);
+        const persistedClientTags = new Set(
+          messages
+            .map((message) => message.clientTag)
+            .filter((clientTag) => typeof clientTag === "string" && clientTag),
+        );
+
+        if (persistedClientTags.size) {
+          setOptimisticMessages((currentMessages) =>
+            currentMessages.filter(
+              (message) =>
+                message.chatId !== activeChatId ||
+                !persistedClientTags.has(message.clientTag),
+            ),
+          );
+        }
       },
       () => {
         setSyncError(
@@ -118,6 +205,10 @@ export function useChatWorkspace() {
 
       if (requestControllerRef.current) {
         requestControllerRef.current.abort();
+      }
+
+      if (enginePollTimeoutRef.current) {
+        window.clearTimeout(enginePollTimeoutRef.current);
       }
     };
   }, []);
@@ -140,7 +231,21 @@ export function useChatWorkspace() {
     setThinkingState(null);
   }
 
-  async function createNewChat() {
+  function addOptimisticMessage(message) {
+    setOptimisticMessages((currentMessages) => [...currentMessages, message]);
+  }
+
+  function removeOptimisticMessage(clientTag) {
+    if (!clientTag) {
+      return;
+    }
+
+    setOptimisticMessages((currentMessages) =>
+      currentMessages.filter((message) => message.clientTag !== clientTag),
+    );
+  }
+
+  async function createNewChat(overrides = {}) {
     if (!user) {
       return;
     }
@@ -154,9 +259,19 @@ export function useChatWorkspace() {
       await upsertUserProfile(user);
       const conversationId = await createConversation({
         user,
-        personaId: DEFAULT_PERSONA_ID,
+        personaId: overrides.personaId || workspacePersonaId || DEFAULT_PERSONA_ID,
       });
       if (conversationId) {
+        const nextWorkspaceContext =
+          overrides.workspaceContext ?? workspaceContext;
+
+        if (nextWorkspaceContext?.trim()) {
+          await updateConversationWorkspaceContext(
+            conversationId,
+            nextWorkspaceContext,
+          );
+        }
+
         setActiveChatId(conversationId);
       }
     } catch {
@@ -182,6 +297,29 @@ export function useChatWorkspace() {
     setDraft(value);
   }
 
+  async function saveWorkspaceSettings(nextSettings) {
+    const nextPersonaId = nextSettings?.personaId || DEFAULT_PERSONA_ID;
+    const nextWorkspaceContext = nextSettings?.workspaceContext?.trim() || "";
+
+    setWorkspacePersonaId(nextPersonaId);
+    setWorkspaceContext(nextWorkspaceContext);
+    setSyncError("");
+
+    if (!activeChatId) {
+      return;
+    }
+
+    try {
+      await Promise.all([
+        updateConversationPersona(activeChatId, nextPersonaId),
+        updateConversationWorkspaceContext(activeChatId, nextWorkspaceContext),
+      ]);
+    } catch {
+      setSyncError("Workspace settings save nahi hui. Firestore access check karo.");
+      throw new Error("Workspace settings save nahi hui.");
+    }
+  }
+
   async function submitMessage(rawMessage) {
     const content = rawMessage.trim();
     if (!content || !user) {
@@ -194,41 +332,74 @@ export function useChatWorkspace() {
     let targetChat = activeChat;
     let targetChatId = activeChatId;
     let controller = null;
+    let userClientTag = "";
 
     try {
-      await upsertUserProfile(user);
+      upsertUserProfile(user).catch(() => {});
 
       if (!targetChatId) {
         targetChatId = await createConversation({
           user,
-          personaId: DEFAULT_PERSONA_ID,
+          personaId: workspacePersonaId || DEFAULT_PERSONA_ID,
         });
         if (!targetChatId) {
           throw new Error("Conversation could not be created.");
         }
+
+        if (workspaceContext.trim()) {
+          await updateConversationWorkspaceContext(targetChatId, workspaceContext);
+        }
+
         setActiveChatId(targetChatId);
       }
 
-      const personaId = targetChat?.personaId ?? DEFAULT_PERSONA_ID;
+      const personaId =
+        targetChat?.personaId ?? workspacePersonaId ?? DEFAULT_PERSONA_ID;
+      const activeWorkspaceContext =
+        targetChat?.workspaceContext ?? workspaceContext ?? "";
       const currentMessageCount = targetChat?.messageCount ?? 0;
       const nextConversationTitle =
         currentMessageCount === 0
           ? content.trim().replace(/\s+/g, " ").slice(0, 38) || "Fresh thread"
           : targetChat?.title ?? "Fresh thread";
       const baseHistory = targetChatId === activeChatId ? activeMessages : [];
-      const historyForApi = [...baseHistory];
+      const historyForApi = activeWorkspaceContext.trim()
+        ? [
+            ...baseHistory,
+            {
+              role: "user",
+              content:
+                `Workspace context:\n${activeWorkspaceContext.trim()}\n\n` +
+                "Keep this context in mind unless the latest user message clearly changes direction.",
+            },
+          ]
+        : [...baseHistory];
+      userClientTag = createClientTag("user");
+      const userOptimisticMessage = {
+        id: userClientTag,
+        clientTag: userClientTag,
+        chatId: targetChatId,
+        role: "user",
+        content,
+        timestamp: Date.now(),
+      };
 
-      await appendConversationMessage({
+      addOptimisticMessage(userOptimisticMessage);
+      setDraft("");
+
+      const persistUserMessagePromise = appendConversationMessage({
         conversationId: targetChatId,
         conversationTitle: nextConversationTitle,
         messageCount: currentMessageCount,
         role: "user",
         content,
+        clientTag: userClientTag,
         personaId,
         user,
+      }).catch((persistError) => {
+        removeOptimisticMessage(userClientTag);
+        throw persistError;
       });
-
-      setDraft("");
       setThinkingState({
         chatId: targetChatId,
         startedAt: Date.now(),
@@ -244,41 +415,57 @@ export function useChatWorkspace() {
         history: historyForApi,
         signal: controller.signal,
       });
+      await persistUserMessagePromise;
 
       if (requestControllerRef.current === controller) {
         requestControllerRef.current = null;
       }
 
       setEngine(assistantResponse.engine);
-
-      const persistAssistantReply = async () => {
+      const persistAssistantReply = async (clientTag) => {
         await appendConversationMessage({
           conversationId: targetChatId,
           conversationTitle: nextConversationTitle,
           messageCount: currentMessageCount + 1,
           role: "assistant",
           content: assistantResponse.reply,
+          clientTag,
           personaId,
           user,
         });
       };
 
+      const showAssistantReply = async () => {
+        const assistantClientTag = createClientTag("assistant");
+        addOptimisticMessage({
+          id: assistantClientTag,
+          clientTag: assistantClientTag,
+          chatId: targetChatId,
+          role: "assistant",
+          content: assistantResponse.reply,
+          timestamp: Date.now(),
+        });
+        setThinkingState(null);
+
+        try {
+          await persistAssistantReply(assistantClientTag);
+        } catch {
+          removeOptimisticMessage(assistantClientTag);
+          setSyncError("AI reply save nahi hui. Firestore sync check karo.");
+        }
+      };
+
       if (assistantResponse.delayMs > 0) {
-        timeoutRef.current = window.setTimeout(async () => {
-          try {
-            await persistAssistantReply();
-          } catch {
-            setSyncError("AI reply save nahi hui. Firestore sync check karo.");
-          } finally {
+        timeoutRef.current = window.setTimeout(() => {
+          showAssistantReply().finally(() => {
             timeoutRef.current = null;
-            setThinkingState(null);
-          }
-        }, assistantResponse.delayMs);
+          });
+        }, Math.max(TYPING_CLEAR_DELAY_MS, assistantResponse.delayMs));
         return;
       }
 
-      await persistAssistantReply();
-      setThinkingState(null);
+      await new Promise((resolve) => window.setTimeout(resolve, TYPING_CLEAR_DELAY_MS));
+      await showAssistantReply();
     } catch (error) {
       if (requestControllerRef.current === controller) {
         requestControllerRef.current = null;
@@ -287,6 +474,10 @@ export function useChatWorkspace() {
       if (error?.name === "AbortError") {
         setThinkingState(null);
         return;
+      }
+
+      if (isLiveChatConfigured()) {
+        setEngine(getUnavailableChatEngine());
       }
 
       const errorMessage =
@@ -315,10 +506,13 @@ export function useChatWorkspace() {
     thinkingState,
     syncError,
     engine,
+    workspacePersonaId,
+    workspaceContext,
     createNewChat,
     setActiveChat,
     clearCurrentChat,
     setDraftFromSuggestion,
+    saveWorkspaceSettings,
     submitMessage,
   };
 }

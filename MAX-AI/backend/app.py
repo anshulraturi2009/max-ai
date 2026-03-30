@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,6 +23,10 @@ WEB_SEARCH_TIMEOUT_SECONDS = 18
 MAX_HISTORY_MESSAGES = 12
 DEFAULT_SERVER_PORT = 5000
 MAX_SEARCH_RESULTS = 5
+DEFAULT_ELEVENLABS_MODEL = "eleven_multilingual_v2"
+DEFAULT_ELEVENLABS_OUTPUT_FORMAT = "mp3_44100_128"
+DEFAULT_ELEVENLABS_TIMEOUT_SECONDS = 45
+MAX_TTS_CHARS = 1800
 DEFAULT_ALLOWED_ORIGINS = (
     "https://max-ai-a030a.web.app",
     "https://max-ai-a030a.firebaseapp.com",
@@ -132,6 +136,17 @@ UNCERTAINTY_MARKERS = (
     "main sure nahi hoon",
 )
 
+PREFERRED_ELEVENLABS_VOICE_NAMES = (
+    "Rachel",
+    "Bella",
+    "Antoni",
+    "Elli",
+    "Josh",
+)
+
+ELEVENLABS_API_BASE_URL = "https://api.elevenlabs.io"
+ELEVENLABS_VOICE_CACHE: dict[str, str] = {}
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -239,6 +254,29 @@ def get_runtime_configuration() -> dict[str, Any]:
     }
 
 
+def get_voice_runtime_configuration() -> dict[str, Any]:
+    return {
+        "primary_api_key": os.getenv("ELEVENLABS_API_KEY_PRIMARY", "").strip(),
+        "secondary_api_key": os.getenv("ELEVENLABS_API_KEY_SECONDARY", "").strip(),
+        "voice_id": os.getenv("ELEVENLABS_VOICE_ID", "").strip(),
+        "primary_voice_id": os.getenv("ELEVENLABS_VOICE_ID_PRIMARY", "").strip(),
+        "secondary_voice_id": os.getenv("ELEVENLABS_VOICE_ID_SECONDARY", "").strip(),
+        "model_id": os.getenv("ELEVENLABS_MODEL_ID", DEFAULT_ELEVENLABS_MODEL).strip()
+        or DEFAULT_ELEVENLABS_MODEL,
+        "output_format": os.getenv(
+            "ELEVENLABS_OUTPUT_FORMAT",
+            DEFAULT_ELEVENLABS_OUTPUT_FORMAT,
+        ).strip()
+        or DEFAULT_ELEVENLABS_OUTPUT_FORMAT,
+        "timeout_seconds": int(
+            os.getenv(
+                "ELEVENLABS_TIMEOUT_SECONDS",
+                str(DEFAULT_ELEVENLABS_TIMEOUT_SECONDS),
+            )
+        ),
+    }
+
+
 def resolve_provider(configuration: dict[str, Any]) -> str:
     if configuration["provider"] == "gemini":
         if not configuration["gemini_api_key"]:
@@ -251,6 +289,14 @@ def resolve_provider(configuration: dict[str, Any]) -> str:
         return "ollama"
 
     return "gemini" if configuration["gemini_api_key"] else "ollama"
+
+
+def is_voice_configured(configuration: dict[str, Any] | None = None) -> bool:
+    active_configuration = configuration or get_voice_runtime_configuration()
+    return bool(
+        active_configuration["primary_api_key"]
+        or active_configuration["secondary_api_key"]
+    )
 
 
 def normalize_history(raw_history: Any) -> list[dict[str, str]]:
@@ -275,6 +321,10 @@ def normalize_history(raw_history: Any) -> list[dict[str, str]]:
             normalized.append({"role": "user", "content": content})
 
     return normalized
+
+
+def normalize_tts_text(raw_text: Any) -> str:
+    return re.sub(r"\s+", " ", str(raw_text or "")).strip()[:MAX_TTS_CHARS]
 
 
 def get_persona_instruction(persona_id: str) -> str:
@@ -365,6 +415,155 @@ def build_augmented_user_message(user_message: str, search_context: str = "") ->
         f"{search_context}\n\n"
         "User question:\n"
         f"{user_message.strip()}"
+    )
+
+
+def iterate_elevenlabs_credentials(
+    configuration: dict[str, Any],
+) -> list[dict[str, str]]:
+    shared_voice_id = configuration["voice_id"]
+    candidates = [
+        {
+            "label": "primary",
+            "api_key": configuration["primary_api_key"],
+            "voice_id": configuration["primary_voice_id"] or shared_voice_id,
+        },
+        {
+            "label": "secondary",
+            "api_key": configuration["secondary_api_key"],
+            "voice_id": configuration["secondary_voice_id"] or shared_voice_id,
+        },
+    ]
+
+    return [candidate for candidate in candidates if candidate["api_key"]]
+
+
+def resolve_elevenlabs_voice_id(api_key: str, configured_voice_id: str = "") -> str:
+    if configured_voice_id:
+        return configured_voice_id
+
+    cached_voice_id = ELEVENLABS_VOICE_CACHE.get(api_key)
+    if cached_voice_id:
+        return cached_voice_id
+
+    try:
+        response = requests.get(
+            f"{ELEVENLABS_API_BASE_URL}/v2/voices",
+            headers={"xi-api-key": api_key},
+            timeout=DEFAULT_ELEVENLABS_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        response_data = response.json()
+    except (requests.RequestException, ValueError) as error:
+        raise AIServiceError(
+            "Could not load ElevenLabs voices for speech playback."
+        ) from error
+
+    voices = response_data.get("voices", [])
+    if not isinstance(voices, list) or not voices:
+        raise AIServiceError("ElevenLabs returned no usable voices.")
+
+    preferred_voice = next(
+        (
+            voice
+            for preferred_name in PREFERRED_ELEVENLABS_VOICE_NAMES
+            for voice in voices
+            if isinstance(voice, dict)
+            and str(voice.get("name", "")).strip().lower() == preferred_name.lower()
+            and str(voice.get("voice_id", "")).strip()
+        ),
+        None,
+    )
+
+    chosen_voice = preferred_voice or next(
+        (
+            voice
+            for voice in voices
+            if isinstance(voice, dict) and str(voice.get("voice_id", "")).strip()
+        ),
+        None,
+    )
+
+    if not chosen_voice:
+        raise AIServiceError("ElevenLabs voice list was empty.")
+
+    voice_id = str(chosen_voice.get("voice_id", "")).strip()
+    ELEVENLABS_VOICE_CACHE[api_key] = voice_id
+    return voice_id
+
+
+def request_elevenlabs_tts(
+    text: str,
+    configuration: dict[str, Any],
+) -> tuple[bytes, str]:
+    if not is_voice_configured(configuration):
+        raise AIServiceError("ElevenLabs voice is not configured on the backend.")
+
+    last_error: Exception | None = None
+    normalized_text = normalize_tts_text(text)
+
+    if not normalized_text:
+        raise AIServiceError("Voice playback text was empty.")
+
+    for credential in iterate_elevenlabs_credentials(configuration):
+        try:
+            voice_id = resolve_elevenlabs_voice_id(
+                credential["api_key"],
+                credential["voice_id"],
+            )
+            response = requests.post(
+                f"{ELEVENLABS_API_BASE_URL}/v1/text-to-speech/{voice_id}/stream",
+                params={"output_format": configuration["output_format"]},
+                headers={
+                    "Accept": "audio/mpeg",
+                    "Content-Type": "application/json",
+                    "xi-api-key": credential["api_key"],
+                },
+                json={
+                    "text": normalized_text,
+                    "model_id": configuration["model_id"],
+                },
+                timeout=configuration["timeout_seconds"],
+            )
+
+            if response.ok and response.content:
+                return response.content, credential["label"]
+
+            if response.status_code == 422 and credential["voice_id"]:
+                ELEVENLABS_VOICE_CACHE.pop(credential["api_key"], None)
+
+            try:
+                error_payload = response.json()
+            except ValueError:
+                error_payload = {}
+
+            last_error = AIServiceError(
+                error_payload.get("detail")
+                or error_payload.get("message")
+                or f"ElevenLabs TTS failed with status {response.status_code}."
+            )
+            logger.warning(
+                "ElevenLabs %s key failed with status=%s",
+                credential["label"],
+                response.status_code,
+            )
+        except requests.RequestException as error:
+            last_error = AIServiceError(f"ElevenLabs request failed: {error}")
+            logger.warning(
+                "ElevenLabs %s key request failed: %s",
+                credential["label"],
+                error,
+            )
+        except AIServiceError as error:
+            last_error = error
+            logger.warning(
+                "ElevenLabs %s key could not resolve a voice: %s",
+                credential["label"],
+                error,
+            )
+
+    raise AIServiceError(
+        str(last_error) if last_error else "ElevenLabs voice playback failed."
     )
 
 
@@ -802,6 +1001,7 @@ def root():
 def health_check():
     """Simple health endpoint for quick backend checks."""
     configuration = get_runtime_configuration()
+    voice_configuration = get_voice_runtime_configuration()
 
     try:
         active_provider = resolve_provider(configuration)
@@ -820,8 +1020,39 @@ def health_check():
                 else configuration["ollama_model"]
             ),
             "geminiConfigured": bool(configuration["gemini_api_key"]),
+            "voiceConfigured": is_voice_configured(voice_configuration),
         }
     )
+
+
+@app.route("/voice/tts", methods=["POST", "OPTIONS"])
+def voice_tts():
+    """Convert assistant text into audio using ElevenLabs with key fallback."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    try:
+        request_data = request.get_json(silent=True) or {}
+        text = normalize_tts_text(request_data.get("text", ""))
+        voice_configuration = get_voice_runtime_configuration()
+
+        if not text:
+            return jsonify({"error": "Field 'text' is required."}), 400
+
+        audio_bytes, active_key_label = request_elevenlabs_tts(
+            text,
+            voice_configuration,
+        )
+        response = Response(audio_bytes, mimetype="audio/mpeg")
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-MAX-AI-Voice-Key"] = active_key_label
+        return response
+    except AIServiceError as error:
+        logger.exception("Voice synthesis error.")
+        return jsonify({"error": str(error)}), 503
+    except Exception as error:  # pragma: no cover - final safety net
+        logger.exception("Unexpected voice synthesis error.")
+        return jsonify({"error": f"Unexpected server error: {error}"}), 500
 
 
 @app.route("/chat", methods=["POST", "OPTIONS"])

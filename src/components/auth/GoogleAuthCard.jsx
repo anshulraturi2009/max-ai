@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowRight, LockKeyhole } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 function GoogleMark() {
@@ -71,26 +71,15 @@ export default function GoogleAuthCard() {
     <div className="panel panel-glow relative overflow-hidden p-6 sm:p-8">
       <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
 
-      <div className="mb-6 flex items-center justify-between">
-        <span className="status-chip">
-          <LockKeyhole className="h-3.5 w-3.5" />
-          Google-only access
-        </span>
-        <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-slate-300">
-          Secure workspace
-        </span>
-      </div>
-
-      <div className="space-y-3">
-        <h2 className="font-display text-3xl font-semibold text-white">
-          Enter the MAX AI core
-        </h2>
-        <p className="max-w-md text-sm leading-7 text-slate-300">
-          Premium MAX AI workspace me entry abhi sirf Google sign-in ke through
-          hai. Fast access, simple onboarding, aur later backend integration ke
-          liye clean auth path.
-        </p>
-      </div>
+      <p className="mb-4 text-xs uppercase tracking-[0.28em] text-slate-400">
+        Google auth only
+      </p>
+      <h2 className="font-display text-3xl font-semibold text-white">
+        Continue into MAX AI
+      </h2>
+      <p className="mt-3 text-sm leading-7 text-slate-300">
+        Single-click Google sign-in. No extra forms, no extra steps.
+      </p>
 
       <button
         type="button"
@@ -115,14 +104,6 @@ export default function GoogleAuthCard() {
         </span>
         <ArrowRight className="h-4 w-4" />
       </button>
-
-      <div className="mt-5 rounded-[22px] border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">
-        <p className="font-medium text-white">Setup note</p>
-        <p className="mt-2 leading-7">
-          `.env` me Firebase web app keys daalo, Firebase console me Google sign-in
-          enable karo, aur authorized domains me local dev host add karo.
-        </p>
-      </div>
 
       {error ? (
         <p className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">

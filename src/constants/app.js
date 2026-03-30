@@ -1,4 +1,5 @@
 export const ADMIN_EMAIL = "anshulraturi51@gmail.com";
+export const AUTH_STORAGE_KEY = "max-ai.session";
 export const WORKSPACE_STORAGE_KEY = "max-ai.workspace";
 export const LEGACY_WORKSPACE_STORAGE_KEYS = ["raturihub.workspace"];
 
