@@ -29,6 +29,7 @@ const TYPING_CLEAR_DELAY_MS = 120;
 const MIN_ASSISTANT_REVEAL_MS = 900;
 const MAX_ASSISTANT_REVEAL_MS = 3200;
 const ASSISTANT_REVEAL_CHAR_MS = 18;
+const DEFAULT_CONVERSATION_TITLE = "Fresh thread";
 
 function createClientTag(prefix = "message") {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -48,6 +49,39 @@ function getAssistantRevealDuration(reply = "") {
     MAX_ASSISTANT_REVEAL_MS,
     Math.max(MIN_ASSISTANT_REVEAL_MS, normalizedLength * ASSISTANT_REVEAL_CHAR_MS),
   );
+}
+
+function getGreetingPrefix(date = new Date()) {
+  const hour = date.getHours();
+  if (hour < 12) {
+    return "Good morning";
+  }
+
+  if (hour < 18) {
+    return "Good afternoon";
+  }
+
+  return "Good evening";
+}
+
+function getGreetingSuffix(gender = "") {
+  const normalizedGender = gender.trim().toLowerCase();
+  if (normalizedGender === "female") {
+    return "ma'am";
+  }
+
+  if (normalizedGender === "male") {
+    return "bhai";
+  }
+
+  return "dost";
+}
+
+function buildNewChatGreeting(user) {
+  const prefix = getGreetingPrefix();
+  const suffix = getGreetingSuffix(user?.gender || "");
+
+  return `${prefix} ${suffix}. Main ready hoon, aaj kya explore ya solve karna hai?`;
 }
 
 export function useChatWorkspace() {
@@ -284,6 +318,21 @@ export function useChatWorkspace() {
       if (conversationId) {
         const nextWorkspaceContext =
           overrides.workspaceContext ?? workspaceContext;
+        const assistantClientTag = createClientTag("assistant-greeting");
+        const greetingMessage = buildNewChatGreeting(user);
+
+        setActiveChatId(conversationId);
+
+        addOptimisticMessage({
+          id: assistantClientTag,
+          clientTag: assistantClientTag,
+          chatId: conversationId,
+          role: "assistant",
+          content: greetingMessage,
+          revealStyle: "typewriter",
+          revealDurationMs: getAssistantRevealDuration(greetingMessage),
+          timestamp: Date.now(),
+        });
 
         if (nextWorkspaceContext?.trim()) {
           await updateConversationWorkspaceContext(
@@ -292,7 +341,18 @@ export function useChatWorkspace() {
           );
         }
 
-        setActiveChatId(conversationId);
+        await appendConversationMessage({
+          conversationId,
+          conversationTitle: DEFAULT_CONVERSATION_TITLE,
+          messageCount: 0,
+          role: "assistant",
+          content: greetingMessage,
+          clientTag: assistantClientTag,
+          personaId: overrides.personaId || workspacePersonaId || DEFAULT_PERSONA_ID,
+          user,
+        }).catch(() => {
+          removeOptimisticMessage(assistantClientTag);
+        });
       }
     } catch {
       setSyncError("New chat create nahi hua. Firestore permissions check karo.");
@@ -380,9 +440,9 @@ export function useChatWorkspace() {
         targetChat?.workspaceContext ?? workspaceContext ?? "";
       const currentMessageCount = targetChat?.messageCount ?? 0;
       const nextConversationTitle =
-        currentMessageCount === 0
-          ? content.trim().replace(/\s+/g, " ").slice(0, 38) || "Fresh thread"
-          : targetChat?.title ?? "Fresh thread";
+        (targetChat?.title ?? DEFAULT_CONVERSATION_TITLE) === DEFAULT_CONVERSATION_TITLE
+          ? content.trim().replace(/\s+/g, " ").slice(0, 38) || DEFAULT_CONVERSATION_TITLE
+          : targetChat?.title ?? DEFAULT_CONVERSATION_TITLE;
       const baseHistory = targetChatId === activeChatId ? activeMessages : [];
       const historyForApi = activeWorkspaceContext.trim()
         ? [

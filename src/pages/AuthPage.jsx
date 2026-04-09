@@ -1,17 +1,18 @@
 import { useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
+import GoogleAuthCard from "../components/auth/GoogleAuthCard";
 import ProfileAccessCard from "../components/auth/ProfileAccessCard";
 import { useAuth } from "../context/AuthContext";
 
 export default function AuthPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, profileComplete } = useAuth();
 
   useEffect(() => {
     document.title = "MAX AI Login";
   }, []);
 
-  if (!loading && user) {
+  if (!loading && user && profileComplete) {
     return <Navigate to="/app" replace />;
   }
 
@@ -26,12 +27,13 @@ export default function AuthPage() {
           <div>
             <h1 className="text-3xl font-semibold text-white">MAX AI</h1>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Website khulte hi direct login. Bas details dalo aur chat par chalo.
+              Pehle Google se sign in karo. Uske baad ek short onboarding step hoga,
+              phir same account ki chats har device par milengi.
             </p>
           </div>
         </div>
 
-        <ProfileAccessCard />
+        {user ? <ProfileAccessCard /> : <GoogleAuthCard />}
       </div>
     </div>
   );

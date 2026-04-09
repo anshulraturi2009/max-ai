@@ -102,6 +102,29 @@ function normalizeShowcaseUsers(users = []) {
     .slice(0, 3);
 }
 
+export function isUserProfileComplete(user) {
+  if (!user) {
+    return false;
+  }
+
+  return Boolean(
+    user.uid &&
+      (user.email ?? "").trim() &&
+      (user.displayName ?? "").trim() &&
+      (user.phoneNumber ?? "").trim() &&
+      (user.gender ?? "").trim(),
+  );
+}
+
+export async function getUserProfile(uid) {
+  if (!db || !uid) {
+    return null;
+  }
+
+  const snapshot = await getDoc(doc(db, USERS_COLLECTION, uid));
+  return snapshot.exists() ? snapshot.data() : null;
+}
+
 export async function upsertUserProfile(user) {
   if (!db || !user) {
     return;
@@ -115,6 +138,7 @@ export async function upsertUserProfile(user) {
     email: user.email ?? "",
     emailLower: (user.email ?? "").toLowerCase(),
     displayName: user.displayName ?? "MAX AI User",
+    gender: user.gender ?? "",
     dob: user.dob ?? "",
     phoneNumber: user.phoneNumber ?? "",
     photoURL: user.photoURL ?? "",
@@ -137,6 +161,75 @@ export async function upsertUserProfile(user) {
     },
     { merge: true },
   );
+}
+
+export async function migrateLegacyUserData(nextUser, legacyUser = null) {
+  if (!db || !nextUser?.uid || !nextUser?.email) {
+    return;
+  }
+
+  const emailLower = (nextUser.email ?? "").toLowerCase();
+  const conversationMap = new Map();
+
+  const emailSnapshot = await getDocs(
+    query(
+      collection(db, CONVERSATIONS_COLLECTION),
+      where("userEmailLower", "==", emailLower),
+    ),
+  );
+  emailSnapshot.docs.forEach((documentSnapshot) => {
+    conversationMap.set(documentSnapshot.id, documentSnapshot);
+  });
+
+  if (legacyUser?.uid && legacyUser.uid !== nextUser.uid) {
+    const legacySnapshot = await getDocs(
+      query(
+        collection(db, CONVERSATIONS_COLLECTION),
+        where("userId", "==", legacyUser.uid),
+      ),
+    );
+    legacySnapshot.docs.forEach((documentSnapshot) => {
+      conversationMap.set(documentSnapshot.id, documentSnapshot);
+    });
+  }
+
+  const conversationsToUpdate = Array.from(conversationMap.values()).filter(
+    (documentSnapshot) => {
+      const data = documentSnapshot.data() ?? {};
+      return (
+        data.userId !== nextUser.uid ||
+        (data.userEmailLower ?? "") !== emailLower ||
+        (data.userName ?? "") !== (nextUser.displayName ?? "MAX AI User") ||
+        (data.userPhotoURL ?? "") !== (nextUser.photoURL ?? "")
+      );
+    },
+  );
+
+  if (!conversationsToUpdate.length) {
+    return;
+  }
+
+  const timestampMs = nowMs();
+  const chunks = [];
+  for (let index = 0; index < conversationsToUpdate.length; index += 400) {
+    chunks.push(conversationsToUpdate.slice(index, index + 400));
+  }
+
+  for (const chunk of chunks) {
+    const batch = writeBatch(db);
+    chunk.forEach((conversationSnapshot) => {
+      batch.update(conversationSnapshot.ref, {
+        userId: nextUser.uid,
+        userEmail: nextUser.email ?? "",
+        userEmailLower: emailLower,
+        userName: nextUser.displayName ?? "MAX AI User",
+        userPhotoURL: nextUser.photoURL ?? "",
+        updatedAt: serverTimestamp(),
+        updatedAtMs: timestampMs,
+      });
+    });
+    await batch.commit();
+  }
 }
 
 export async function syncLoginShowcaseUser(user) {

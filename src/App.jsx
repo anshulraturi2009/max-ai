@@ -58,13 +58,13 @@ function GuardScreen({ label }) {
 }
 
 function RootRoute() {
-  const { user, loading, authConfigured } = useAuth();
+  const { user, loading, authConfigured, profileComplete } = useAuth();
 
   if (loading) {
     return <GuardScreen label="Loading MAX AI..." />;
   }
 
-  if (!authConfigured || !user) {
+  if (!authConfigured || !user || !profileComplete) {
     return <Navigate to="/auth" replace />;
   }
 
@@ -72,14 +72,14 @@ function RootRoute() {
 }
 
 function ProtectedRoute({ children }) {
-  const { user, loading, authConfigured } = useAuth();
+  const { user, loading, authConfigured, profileComplete } = useAuth();
   const location = useLocation();
 
   if (loading) {
     return <GuardScreen label="Securing your workspace..." />;
   }
 
-  if (!authConfigured || !user) {
+  if (!authConfigured || !user || !profileComplete) {
     return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
   }
 
@@ -87,14 +87,14 @@ function ProtectedRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { user, loading, authConfigured, isAdmin } = useAuth();
+  const { user, loading, authConfigured, isAdmin, profileComplete } = useAuth();
   const location = useLocation();
 
   if (loading) {
     return <GuardScreen label="Verifying admin clearance..." />;
   }
 
-  if (!authConfigured || !user) {
+  if (!authConfigured || !user || !profileComplete) {
     return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
   }
 

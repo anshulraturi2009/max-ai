@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -32,20 +31,11 @@ function GoogleMark() {
 }
 
 export default function GoogleAuthCard() {
-  const { user, authConfigured, signInWithGoogle } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { authConfigured, signInWithGoogle } = useAuth();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
-  const redirectPath = location.state?.from || "/app";
-
   async function handleGoogleAuth() {
-    if (user) {
-      navigate(redirectPath);
-      return;
-    }
-
     if (!authConfigured) {
       setError("Firebase env values add karo, tab Google login live ho jayega.");
       return;
@@ -55,7 +45,6 @@ export default function GoogleAuthCard() {
       setPending(true);
       setError("");
       await signInWithGoogle();
-      navigate(redirectPath);
     } catch (authError) {
       setError(
         authError?.message?.includes("popup")
@@ -68,17 +57,16 @@ export default function GoogleAuthCard() {
   }
 
   return (
-    <div className="panel panel-glow relative overflow-hidden p-6 sm:p-8">
-      <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-
+    <div className="w-full rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-[0_18px_50px_rgba(0,0,0,0.28)] sm:p-7">
       <p className="mb-4 text-xs uppercase tracking-[0.28em] text-slate-400">
-        Google auth only
+        Google auth
       </p>
-      <h2 className="font-display text-3xl font-semibold text-white">
+      <h2 className="text-3xl font-semibold text-white">
         Continue into MAX AI
       </h2>
       <p className="mt-3 text-sm leading-7 text-slate-300">
-        Single-click Google sign-in. No extra forms, no extra steps.
+        Same Google account se login karoge to chats alag-alag devices par bhi
+        sync rahengi.
       </p>
 
       <button
@@ -93,12 +81,10 @@ export default function GoogleAuthCard() {
           </span>
           <span>
             <span className="block text-sm font-semibold">
-              {user ? "Open AI workspace" : "Continue with Google"}
+              {pending ? "Connecting..." : "Continue with Google"}
             </span>
             <span className="block text-xs text-slate-500">
-              {authConfigured
-                ? "Single-click sign-in for premium access"
-                : "Add Firebase env keys to activate auth"}
+              Gmail sign-in with stable cloud sync
             </span>
           </span>
         </span>
