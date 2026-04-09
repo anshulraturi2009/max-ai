@@ -18,11 +18,15 @@ services:
         sync: false
       - key: GEMINI_API_KEY_SECONDARY
         sync: false
+      - key: GEMINI_API_KEYS
+        sync: false
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_API_KEY_PRIMARY
         sync: false
       - key: GROQ_API_KEY_SECONDARY
+        sync: false
+      - key: GROQ_API_KEYS
         sync: false
       - key: GEMINI_VIDEO_API_KEY
         sync: false
