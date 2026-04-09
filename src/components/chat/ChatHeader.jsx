@@ -3,9 +3,6 @@ import { useTheme } from "../../context/ThemeContext";
 import InstallButton from "./InstallButton";
 
 export default function ChatHeader({
-  engine,
-  isThinking,
-  thinkingStage = "thinking",
   onMenuToggle,
   onNewChat,
   onClear,
@@ -16,18 +13,6 @@ export default function ChatHeader({
   const actionButtonClass = isLight
     ? "border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-200 max-sm:border-transparent max-sm:bg-transparent max-sm:text-slate-700 max-sm:hover:bg-slate-200/55"
     : "border-white/10 bg-white/[0.05] text-slate-100 hover:bg-white/[0.08] max-sm:border-transparent max-sm:bg-transparent max-sm:text-slate-200 max-sm:hover:bg-white/[0.06]";
-  const statusLabel =
-    engine?.status === "offline"
-      ? "Offline"
-      : engine?.status === "waking"
-        ? "Waking"
-      : isThinking && thinkingStage === "rendering-video"
-        ? "Rendering video"
-      : isThinking && thinkingStage === "searching"
-        ? "Searching"
-      : isThinking
-          ? "Thinking"
-          : "Ready";
 
   return (
     <header
@@ -69,25 +54,6 @@ export default function ChatHeader({
               >
                 MAX AI
               </h1>
-              <div
-                className={`mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] sm:text-xs ${
-                  isLight ? "text-slate-500" : "text-slate-400"
-                }`}
-              >
-                <span
-                  className={`inline-flex items-center gap-2 sm:rounded-full sm:px-3 sm:py-1 ${
-                    isLight
-                      ? "sm:border sm:border-slate-200 sm:bg-white/80"
-                      : "sm:border sm:border-white/10 sm:bg-white/[0.04]"
-                  }`}
-                >
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(74,222,128,0.8)]" />
-                  {statusLabel}
-                </span>
-                <span className={`truncate ${isLight ? "text-slate-500" : "text-slate-400/90"}`}>
-                  {engine?.label || "Live AI"}
-                </span>
-              </div>
             </div>
           </div>
         </div>

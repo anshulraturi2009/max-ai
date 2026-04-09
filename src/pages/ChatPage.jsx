@@ -36,6 +36,13 @@ export default function ChatPage() {
   const [compactVisuals, setCompactVisuals] = useState(false);
   const [ultraLiteMode, setUltraLiteMode] = useState(false);
   const scrollContainerRef = useRef(null);
+  const swipeGestureRef = useRef({
+    tracking: false,
+    startX: 0,
+    startY: 0,
+    deltaX: 0,
+    deltaY: 0,
+  });
   const isThinking = thinkingState?.chatId === activeChatId;
   const thinkingStage = isThinking ? thinkingState?.stage || "thinking" : "thinking";
   const reduceEffects = compactVisuals || prefersReducedMotion;
@@ -128,6 +135,59 @@ export default function ChatPage() {
     clearCurrentChat();
   }
 
+  function handleTouchStart(event) {
+    if (
+      typeof window === "undefined" ||
+      window.innerWidth > 768 ||
+      mobileSidebarOpen ||
+      event.touches.length !== 1
+    ) {
+      swipeGestureRef.current.tracking = false;
+      return;
+    }
+
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest("button, a, input, textarea, select, [role='button']")
+    ) {
+      swipeGestureRef.current.tracking = false;
+      return;
+    }
+
+    const touch = event.touches[0];
+    swipeGestureRef.current = {
+      tracking: touch.clientX <= 36,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      deltaX: 0,
+      deltaY: 0,
+    };
+  }
+
+  function handleTouchMove(event) {
+    if (!swipeGestureRef.current.tracking || event.touches.length !== 1) {
+      return;
+    }
+
+    const touch = event.touches[0];
+    swipeGestureRef.current.deltaX = touch.clientX - swipeGestureRef.current.startX;
+    swipeGestureRef.current.deltaY = touch.clientY - swipeGestureRef.current.startY;
+  }
+
+  function handleTouchEnd() {
+    const { tracking, deltaX, deltaY } = swipeGestureRef.current;
+    swipeGestureRef.current.tracking = false;
+
+    if (!tracking) {
+      return;
+    }
+
+    if (deltaX > 72 && Math.abs(deltaY) < 56) {
+      setMobileSidebarOpen(true);
+    }
+  }
+
   return (
     <div
       className={`relative h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none ${
@@ -217,11 +277,13 @@ export default function ChatPage() {
           onSignOut={handleSignOut}
         />
 
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-none">
+        <main
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-none"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <ChatHeader
-            engine={engine}
-            isThinking={isThinking}
-            thinkingStage={thinkingStage}
             onMenuToggle={() => setMobileSidebarOpen(true)}
             onNewChat={createNewChat}
             onClear={handleClearChat}
@@ -377,8 +439,6 @@ export default function ChatPage() {
               voiceCallSupported={voiceCall.isSupported}
               voiceCallFeedback={voiceCall.feedback}
               onToggleVoiceCall={voiceCall.toggleCall}
-              onClear={handleClearChat}
-              canClear={isAdmin}
             />
           </div>
         </main>

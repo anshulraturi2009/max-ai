@@ -52,6 +52,7 @@ export function ThemeProvider({ children }) {
       if (document.body) {
         document.body.classList.remove("theme-light", "theme-dark");
         document.body.classList.add(`theme-${nextResolvedTheme}`);
+        document.body.style.colorScheme = nextResolvedTheme;
       }
 
       const themeMeta = document.querySelector('meta[name="theme-color"]');

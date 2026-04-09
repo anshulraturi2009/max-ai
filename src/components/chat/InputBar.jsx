@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Eraser,
   FolderOpen,
   LoaderCircle,
   Mic,
@@ -155,13 +154,11 @@ export default function InputBar({
   setDraft,
   onSend,
   disabled,
-  onClear,
   voiceCallActive = false,
   voiceCallStage = "idle",
   voiceCallSupported = false,
   voiceCallFeedback = "",
   onToggleVoiceCall,
-  canClear = false,
 }) {
   const { resolvedTheme } = useTheme();
   const isLight = resolvedTheme === "light";
@@ -516,19 +513,6 @@ export default function InputBar({
             >
               <Mic className="h-4 w-4" />
             </button>
-            {canClear ? (
-              <button
-                type="button"
-                onClick={onClear}
-                className={`grid h-9 w-9 place-items-center rounded-2xl border transition hover:-translate-y-0.5 sm:h-11 sm:w-11 ${
-                  isLight
-                    ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-                    : "border-white/10 bg-white/[0.05] text-slate-300 hover:bg-white/[0.09]"
-                }`}
-              >
-                <Eraser className="h-4 w-4" />
-              </button>
-            ) : null}
           </div>
         </div>
 

@@ -36,11 +36,17 @@
   }
 
   html.theme-light body {
+    color-scheme: light;
     color: #0f172a;
     background:
       radial-gradient(circle at top, rgba(251, 146, 60, 0.12), transparent 28%),
       radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.12), transparent 24%),
       #eef4ff;
+  }
+
+  html.theme-dark,
+  html.theme-dark body {
+    color-scheme: dark;
   }
 
   ::selection {
@@ -74,6 +80,24 @@
 
   textarea {
     resize: none;
+  }
+
+  input,
+  textarea,
+  select {
+    color-scheme: inherit;
+  }
+
+  html.theme-light input,
+  html.theme-light textarea,
+  html.theme-light select {
+    color-scheme: light;
+  }
+
+  html.theme-dark input,
+  html.theme-dark textarea,
+  html.theme-dark select {
+    color-scheme: dark;
   }
 
   html.app-shell-locked body {
