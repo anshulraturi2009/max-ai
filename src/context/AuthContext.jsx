@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import {
+  getRedirectResult,
   onAuthStateChanged,
   signInWithPopup,
   signInWithRedirect,
@@ -17,6 +18,7 @@ import {
 import { auth, firebaseConfigured, googleProvider } from "../lib/firebase";
 
 const AuthContext = createContext(null);
+const PENDING_REDIRECT_KEY = "max-ai.pending-google-redirect";
 
 function normalizeAuthUser(firebaseUser, profile = {}) {
   if (!firebaseUser) {
@@ -91,17 +93,55 @@ function clearStoredSessionUser() {
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
+function hasPendingRedirectLogin() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.sessionStorage.getItem(PENDING_REDIRECT_KEY) === "1";
+}
+
+function setPendingRedirectLogin(isPending) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (isPending) {
+    window.sessionStorage.setItem(PENDING_REDIRECT_KEY, "1");
+    return;
+  }
+
+  window.sessionStorage.removeItem(PENDING_REDIRECT_KEY);
+}
+
 function shouldUseRedirectSignIn() {
   if (typeof window === "undefined") {
     return false;
   }
 
-  const mobileViewport = window.matchMedia?.("(max-width: 768px)")?.matches;
   const standaloneMode = window.matchMedia?.("(display-mode: standalone)")?.matches;
   const userAgent = window.navigator?.userAgent || "";
-  const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
+  const iosDevice = /iPhone|iPad|iPod/i.test(userAgent);
 
-  return Boolean(mobileViewport || standaloneMode || mobileUserAgent);
+  return Boolean(standaloneMode || iosDevice);
+}
+
+async function hydrateSignedInUser(firebaseUser, sessionUser = null) {
+  const profile = (await getUserProfile(firebaseUser.uid)) ?? {};
+  const nextUser = normalizeAuthUser(firebaseUser, {
+    ...sessionUser,
+    ...profile,
+  });
+
+  await migrateLegacyUserData(nextUser, sessionUser);
+  persistSessionUser(nextUser);
+
+  if (isUserProfileComplete(nextUser)) {
+    await upsertUserProfile(nextUser);
+    syncLoginShowcaseUser(nextUser).catch(() => {});
+  }
+
+  return nextUser;
 }
 
 export function AuthProvider({ children }) {
@@ -116,42 +156,93 @@ export function AuthProvider({ children }) {
       return undefined;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (!firebaseUser) {
-        clearStoredSessionUser();
-        setUser(null);
+    let active = true;
+    let authResolved = false;
+    let redirectResolved = !hasPendingRedirectLogin();
+
+    const finishLoadingIfReady = () => {
+      if (active && authResolved && redirectResolved) {
         setLoading(false);
+      }
+    };
+
+    const finalizeUser = (nextUser) => {
+      if (!active) {
         return;
       }
 
-      const storedUser = readStoredSessionUser();
+      setUser(nextUser);
+    };
+
+    const handleAuthState = async (firebaseUser) => {
+      if (!firebaseUser) {
+        if (!redirectResolved) {
+          authResolved = true;
+          finishLoadingIfReady();
+          return;
+        }
+
+        clearStoredSessionUser();
+        finalizeUser(null);
+        authResolved = true;
+        finishLoadingIfReady();
+        return;
+      }
 
       try {
-        const profile = (await getUserProfile(firebaseUser.uid)) ?? {};
-        const nextUser = normalizeAuthUser(firebaseUser, {
-          ...storedUser,
-          ...profile,
-        });
-
-        await migrateLegacyUserData(nextUser, storedUser);
-
-        persistSessionUser(nextUser);
-        setUser(nextUser);
-
-        if (isUserProfileComplete(nextUser)) {
-          await upsertUserProfile(nextUser);
-          syncLoginShowcaseUser(nextUser).catch(() => {});
-        }
+        const nextUser = await hydrateSignedInUser(firebaseUser, readStoredSessionUser());
+        finalizeUser(nextUser);
       } catch {
-        const fallbackUser = normalizeAuthUser(firebaseUser, storedUser ?? {});
+        const fallbackUser = normalizeAuthUser(firebaseUser, readStoredSessionUser() ?? {});
         persistSessionUser(fallbackUser);
-        setUser(fallbackUser);
+        finalizeUser(fallbackUser);
       } finally {
-        setLoading(false);
+        authResolved = true;
+        finishLoadingIfReady();
       }
+    };
+
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      handleAuthState(firebaseUser);
     });
 
-    return unsubscribe;
+    if (!redirectResolved) {
+      getRedirectResult(auth)
+        .then(async (result) => {
+          setPendingRedirectLogin(false);
+
+          if (!result?.user) {
+            return;
+          }
+
+          try {
+            const nextUser = await hydrateSignedInUser(
+              result.user,
+              readStoredSessionUser(),
+            );
+            finalizeUser(nextUser);
+          } catch {
+            const fallbackUser = normalizeAuthUser(
+              result.user,
+              readStoredSessionUser() ?? {},
+            );
+            persistSessionUser(fallbackUser);
+            finalizeUser(fallbackUser);
+          }
+        })
+        .catch(() => {
+          setPendingRedirectLogin(false);
+        })
+        .finally(() => {
+          redirectResolved = true;
+          finishLoadingIfReady();
+        });
+    }
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   async function signInWithGoogle() {
@@ -160,6 +251,7 @@ export function AuthProvider({ children }) {
     }
 
     if (shouldUseRedirectSignIn()) {
+      setPendingRedirectLogin(true);
       await signInWithRedirect(auth, googleProvider);
       return null;
     }
@@ -173,6 +265,7 @@ export function AuthProvider({ children }) {
         error?.code === "auth/cancelled-popup-request" ||
         error?.code === "auth/popup-closed-by-user"
       ) {
+        setPendingRedirectLogin(true);
         await signInWithRedirect(auth, googleProvider);
         return null;
       }
@@ -215,6 +308,7 @@ export function AuthProvider({ children }) {
 
   async function signOutUser() {
     clearStoredSessionUser();
+    setPendingRedirectLogin(false);
 
     if (!auth) {
       setUser(null);

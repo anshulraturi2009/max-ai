@@ -33,7 +33,6 @@ if (firebaseConfigured) {
   auth = getAuth(firebaseApp);
   setPersistence(auth, browserLocalPersistence).catch(() => {});
   googleProvider = new GoogleAuthProvider();
-  googleProvider.setCustomParameters({ prompt: "select_account" });
 
   if (typeof window !== "undefined") {
     analyticsPromise = isSupported()
