@@ -215,6 +215,27 @@
 
 @media (max-width: 768px) {
   @layer components {
+    .mobile-chat-header {
+      position: absolute;
+      inset-inline: 0;
+      top: 0;
+      z-index: 40;
+      background: transparent !important;
+      border: 0 !important;
+    }
+
+    .mobile-chat-scroll {
+      padding-top: calc(env(safe-area-inset-top, 0px) + 2.75rem);
+    }
+
+    .mobile-chat-scroll--call {
+      padding-top: 1rem;
+    }
+
+    .mobile-chat-call-strip {
+      margin-top: calc(env(safe-area-inset-top, 0px) + 3.15rem);
+    }
+
     .mobile-top-shell {
       padding-bottom: 0.4rem;
       backdrop-filter: none;

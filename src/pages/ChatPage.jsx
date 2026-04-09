@@ -230,7 +230,7 @@ export default function ChatPage() {
 
           {voiceCall.callActive ? (
             <div
-              className={`px-4 py-3 backdrop-blur-xl sm:px-6 ${
+              className={`mobile-chat-call-strip px-4 py-3 backdrop-blur-xl sm:px-6 ${
                 isLight
                   ? "border-b border-slate-200/80 bg-white/55"
                   : "border-b border-white/10 bg-slate-950/40"
@@ -277,7 +277,9 @@ export default function ChatPage() {
           <div className="min-h-0 flex-1 overflow-hidden">
             <div
               ref={scrollContainerRef}
-              className="h-full min-h-0 overflow-y-auto overscroll-y-contain px-4 py-5 [scrollbar-gutter:stable] sm:px-6"
+              className={`mobile-chat-scroll h-full min-h-0 overflow-y-auto overscroll-y-contain px-4 pb-5 [scrollbar-gutter:stable] sm:px-6 sm:py-5 ${
+                voiceCall.callActive ? "mobile-chat-scroll--call" : ""
+              }`}
             >
               <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 pb-8">
                 {syncError ? (

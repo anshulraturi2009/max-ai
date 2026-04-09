@@ -31,21 +31,13 @@ export default function ChatHeader({
 
   return (
     <header
-      className={`mobile-top-shell relative px-4 pb-2 sm:px-6 sm:py-3 sm:backdrop-blur-2xl ${
+      className={`mobile-chat-header mobile-top-shell pointer-events-none px-4 pb-2 sm:relative sm:z-auto sm:px-6 sm:py-3 sm:pointer-events-auto sm:backdrop-blur-2xl ${
         isLight
           ? "sm:border-b sm:border-slate-200/80 sm:bg-white/55"
           : "sm:border-b sm:border-white/10 sm:bg-slate-950/40"
       }`}
     >
-      <div
-        className={`pointer-events-none absolute inset-x-0 top-0 h-full sm:hidden ${
-          isLight
-            ? "bg-[linear-gradient(180deg,rgba(238,244,255,0.94)_0%,rgba(238,244,255,0.6)_55%,rgba(238,244,255,0)_100%)]"
-            : "bg-[linear-gradient(180deg,rgba(8,17,31,0.94)_0%,rgba(8,17,31,0.58)_55%,rgba(8,17,31,0)_100%)]"
-        }`}
-      />
-
-      <div className="relative mx-auto flex w-full max-w-6xl items-start justify-between gap-3 sm:items-center">
+      <div className="relative mx-auto flex w-full max-w-6xl items-start justify-between gap-3 pointer-events-auto sm:items-center">
         <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
           <button
             type="button"
