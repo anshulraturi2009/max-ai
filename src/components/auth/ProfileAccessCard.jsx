@@ -50,11 +50,11 @@ export default function ProfileAccessCard() {
 
   function validateForm() {
     if (!form.name.trim() || !form.gender.trim() || !form.phoneNumber.trim()) {
-      return "Name, gender aur phone number sab required hain.";
+      return "Name, gender, and phone number are required.";
     }
 
     if (form.phoneNumber.replace(/\D/g, "").length < 10) {
-      return "Valid phone number enter karo.";
+      return "Enter a valid phone number.";
     }
 
     return "";
@@ -70,7 +70,7 @@ export default function ProfileAccessCard() {
     }
 
     if (!authConfigured) {
-      setError("Firebase setup missing hai. Pehle project config check karo.");
+      setError("Firebase setup is missing. Please review the project config.");
       return;
     }
 
@@ -84,7 +84,7 @@ export default function ProfileAccessCard() {
       });
       navigate(redirectPath, { replace: true });
     } catch (profileError) {
-      setError(profileError?.message || "Profile save nahi hua. Ek baar phir try karo.");
+      setError(profileError?.message || "Your profile could not be saved. Please try again.");
     } finally {
       setPending(false);
     }
@@ -105,8 +105,8 @@ export default function ProfileAccessCard() {
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          Google login ho gaya. Ab name, gender aur phone save kar do taaki MAX AI
-          tumhare hisaab se greet kare.
+          Save your name, gender, and phone number so MAX AI can personalize
+          your first greeting.
         </p>
 
         {user?.email ? (
@@ -169,7 +169,7 @@ export default function ProfileAccessCard() {
           </label>
 
           <p className="text-xs leading-5 text-slate-500">
-            New chat par time aur gender ke hisaab se greeting milegi.
+            Your greeting will adapt to the time of day and your selected profile.
           </p>
 
           <button

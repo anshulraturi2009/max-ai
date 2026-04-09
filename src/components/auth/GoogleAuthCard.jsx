@@ -37,7 +37,7 @@ export default function GoogleAuthCard() {
 
   async function handleGoogleAuth() {
     if (!authConfigured) {
-      setError("Firebase env values add karo, tab Google login live ho jayega.");
+      setError("Add the Firebase environment values to enable Google sign-in.");
       return;
     }
 
@@ -48,8 +48,8 @@ export default function GoogleAuthCard() {
     } catch (authError) {
       setError(
         authError?.message?.includes("popup")
-          ? "Google popup ko allow karke phir try karo."
-          : "Google sign-in complete nahi ho paya. Ek baar phir try karo.",
+          ? "Allow the Google popup and try again."
+          : "Google sign-in could not be completed. Please try again.",
       );
     } finally {
       setPending(false);
@@ -65,8 +65,7 @@ export default function GoogleAuthCard() {
         Continue into MAX AI
       </h2>
       <p className="mt-3 text-sm leading-7 text-slate-300">
-        Same Google account se login karoge to chats alag-alag devices par bhi
-        sync rahengi.
+        Use the same Google account to keep your chats synced across devices.
       </p>
 
       <button

@@ -22,13 +22,13 @@ export default function AuthPage() {
         <div className="space-y-3 text-center">
           <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-medium uppercase tracking-[0.2em] text-slate-300">
             <ShieldCheck className="h-3.5 w-3.5" />
-            Direct login
+            Secure sign-in
           </div>
           <div>
             <h1 className="text-3xl font-semibold text-white">MAX AI</h1>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Pehle Google se sign in karo. Uske baad ek short onboarding step hoga,
-              phir same account ki chats har device par milengi.
+              Sign in with Google once, finish the short onboarding step, and
+              keep your chats available across devices.
             </p>
           </div>
         </div>

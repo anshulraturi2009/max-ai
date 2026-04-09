@@ -1,6 +1,11 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  getAuth,
+  GoogleAuthProvider,
+  setPersistence,
+} from "firebase/auth";
 
 const firebaseCoreConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -26,6 +31,7 @@ let analyticsPromise = Promise.resolve(null);
 if (firebaseConfigured) {
   firebaseApp = initializeApp(firebaseConfig);
   auth = getAuth(firebaseApp);
+  setPersistence(auth, browserLocalPersistence).catch(() => {});
   googleProvider = new GoogleAuthProvider();
   googleProvider.setCustomParameters({ prompt: "select_account" });
 

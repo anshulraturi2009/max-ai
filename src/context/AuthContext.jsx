@@ -34,7 +34,7 @@ function normalizeAuthUser(firebaseUser, profile = {}) {
   };
 }
 
-function readLegacySessionUser() {
+function readStoredSessionUser() {
   if (typeof window === "undefined") {
     return null;
   }
@@ -54,6 +54,8 @@ function readLegacySessionUser() {
       uid: parsed.uid || "",
       email: parsed.email?.trim()?.toLowerCase() || "",
       displayName: parsed.displayName?.trim() || "",
+      dob: parsed.dob || "",
+      gender: parsed.gender?.trim() || "",
       phoneNumber: parsed.phoneNumber?.trim() || "",
       photoURL: parsed.photoURL || "",
     };
@@ -62,7 +64,26 @@ function readLegacySessionUser() {
   }
 }
 
-function clearLegacySessionUser() {
+function persistSessionUser(user) {
+  if (typeof window === "undefined" || !user?.uid) {
+    return;
+  }
+
+  window.localStorage.setItem(
+    AUTH_STORAGE_KEY,
+    JSON.stringify({
+      uid: user.uid,
+      email: user.email ?? "",
+      displayName: user.displayName ?? "",
+      dob: user.dob ?? "",
+      gender: user.gender ?? "",
+      phoneNumber: user.phoneNumber ?? "",
+      photoURL: user.photoURL ?? "",
+    }),
+  );
+}
+
+function clearStoredSessionUser() {
   if (typeof window === "undefined") {
     return;
   }
@@ -89,7 +110,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!firebaseConfigured || !auth) {
-      clearLegacySessionUser();
+      clearStoredSessionUser();
       setUser(null);
       setLoading(false);
       return undefined;
@@ -97,20 +118,24 @@ export function AuthProvider({ children }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
-        clearLegacySessionUser();
+        clearStoredSessionUser();
         setUser(null);
         setLoading(false);
         return;
       }
 
+      const storedUser = readStoredSessionUser();
+
       try {
-        const legacyUser = readLegacySessionUser();
         const profile = (await getUserProfile(firebaseUser.uid)) ?? {};
-        const nextUser = normalizeAuthUser(firebaseUser, profile);
+        const nextUser = normalizeAuthUser(firebaseUser, {
+          ...storedUser,
+          ...profile,
+        });
 
-        await migrateLegacyUserData(nextUser, legacyUser);
+        await migrateLegacyUserData(nextUser, storedUser);
 
-        clearLegacySessionUser();
+        persistSessionUser(nextUser);
         setUser(nextUser);
 
         if (isUserProfileComplete(nextUser)) {
@@ -118,7 +143,9 @@ export function AuthProvider({ children }) {
           syncLoginShowcaseUser(nextUser).catch(() => {});
         }
       } catch {
-        setUser(normalizeAuthUser(firebaseUser));
+        const fallbackUser = normalizeAuthUser(firebaseUser, storedUser ?? {});
+        persistSessionUser(fallbackUser);
+        setUser(fallbackUser);
       } finally {
         setLoading(false);
       }
@@ -129,7 +156,7 @@ export function AuthProvider({ children }) {
 
   async function signInWithGoogle() {
     if (!firebaseConfigured || !auth || !googleProvider) {
-      throw new Error("Firebase Google auth configured nahi hai.");
+      throw new Error("Firebase Google sign-in is not configured.");
     }
 
     if (shouldUseRedirectSignIn()) {
@@ -156,7 +183,7 @@ export function AuthProvider({ children }) {
 
   async function completeGoogleProfile(profile) {
     if (!auth?.currentUser) {
-      throw new Error("Google login session nahi mila. Ek baar phir sign-in karo.");
+      throw new Error("No active Google session was found. Please sign in again.");
     }
 
     const nextUser = normalizeAuthUser(auth.currentUser, {
@@ -167,11 +194,11 @@ export function AuthProvider({ children }) {
     });
 
     if (!nextUser.displayName || !nextUser.phoneNumber || !nextUser.gender) {
-      throw new Error("Name, gender aur phone number sab required hain.");
+      throw new Error("Name, gender, and phone number are required.");
     }
 
     if ((nextUser.phoneNumber ?? "").replace(/\D/g, "").length < 10) {
-      throw new Error("Valid phone number enter karo.");
+      throw new Error("Enter a valid phone number.");
     }
 
     await updateProfile(auth.currentUser, {
@@ -179,15 +206,15 @@ export function AuthProvider({ children }) {
     }).catch(() => {});
 
     await upsertUserProfile(nextUser);
-    await migrateLegacyUserData(nextUser, readLegacySessionUser());
-    clearLegacySessionUser();
+    await migrateLegacyUserData(nextUser, readStoredSessionUser());
+    persistSessionUser(nextUser);
     setUser(nextUser);
     syncLoginShowcaseUser(nextUser).catch(() => {});
     return nextUser;
   }
 
   async function signOutUser() {
-    clearLegacySessionUser();
+    clearStoredSessionUser();
 
     if (!auth) {
       setUser(null);
