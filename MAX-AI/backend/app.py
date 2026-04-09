@@ -309,17 +309,50 @@ def load_system_prompt() -> str:
     return prompt
 
 
+def parse_secret_values(*raw_values: str) -> list[str]:
+    normalized: list[str] = []
+    seen = set()
+
+    for raw_value in raw_values:
+        if not raw_value:
+            continue
+
+        for candidate in re.split(r"[\n,]+", raw_value):
+            value = candidate.strip()
+            if not value or value in seen:
+                continue
+            seen.add(value)
+            normalized.append(value)
+
+    return normalized
+
+
 def get_runtime_configuration() -> dict[str, Any]:
     provider = os.getenv("AI_PROVIDER", DEFAULT_PROVIDER).strip().lower() or DEFAULT_PROVIDER
     if provider not in {"auto", "gemini", "groq", "ollama"}:
         provider = DEFAULT_PROVIDER
 
+    gemini_api_keys = parse_secret_values(
+        os.getenv("GEMINI_API_KEY_PRIMARY", "").strip(),
+        os.getenv("GEMINI_API_KEY", "").strip(),
+        os.getenv("GEMINI_API_KEY_SECONDARY", "").strip(),
+        os.getenv("GEMINI_API_KEYS", "").strip(),
+    )
+    groq_api_keys = parse_secret_values(
+        os.getenv("GROQ_API_KEY_PRIMARY", "").strip(),
+        os.getenv("GROQ_API_KEY", "").strip(),
+        os.getenv("GROQ_API_KEY_SECONDARY", "").strip(),
+        os.getenv("GROQ_API_KEYS", "").strip(),
+    )
+
     return {
         "provider": provider,
-        "gemini_api_key": os.getenv("GEMINI_API_KEY", "").strip(),
+        "gemini_api_key": gemini_api_keys[0] if gemini_api_keys else "",
+        "gemini_api_keys": gemini_api_keys,
         "gemini_model": os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL).strip()
         or DEFAULT_GEMINI_MODEL,
-        "groq_api_key": os.getenv("GROQ_API_KEY", "").strip(),
+        "groq_api_key": groq_api_keys[0] if groq_api_keys else "",
+        "groq_api_keys": groq_api_keys,
         "groq_model": os.getenv("GROQ_MODEL", DEFAULT_GROQ_MODEL).strip()
         or DEFAULT_GROQ_MODEL,
         "ollama_model": os.getenv("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL).strip()
@@ -389,14 +422,14 @@ def get_video_runtime_configuration() -> dict[str, Any]:
 
 def resolve_provider(configuration: dict[str, Any]) -> str:
     if configuration["provider"] == "gemini":
-        if not configuration["gemini_api_key"]:
+        if not configuration["gemini_api_keys"]:
             raise AIServiceError(
                 "AI_PROVIDER is set to gemini but GEMINI_API_KEY is missing."
             )
         return "gemini"
 
     if configuration["provider"] == "groq":
-        if not configuration["groq_api_key"]:
+        if not configuration["groq_api_keys"]:
             raise AIServiceError(
                 "AI_PROVIDER is set to groq but GROQ_API_KEY is missing."
             )
@@ -405,10 +438,10 @@ def resolve_provider(configuration: dict[str, Any]) -> str:
     if configuration["provider"] == "ollama":
         return "ollama"
 
-    if configuration["gemini_api_key"]:
+    if configuration["gemini_api_keys"]:
         return "gemini"
 
-    if configuration["groq_api_key"]:
+    if configuration["groq_api_keys"]:
         return "groq"
 
     return "ollama"
@@ -1109,6 +1142,25 @@ def extract_groq_reply(response_data: dict[str, Any]) -> str:
     return reply
 
 
+def should_try_next_api_key(status_code: int | None, message: str = "") -> bool:
+    normalized_message = message.strip().lower()
+    if status_code in {401, 403, 429}:
+        return True
+
+    retry_markers = (
+        "rate limit",
+        "quota",
+        "resource exhausted",
+        "too many requests",
+        "unauthorized",
+        "invalid api key",
+        "permission denied",
+        "exceeded your current quota",
+        "credits",
+    )
+    return any(marker in normalized_message for marker in retry_markers)
+
+
 def request_gemini(
     user_message: str,
     persona_id: str,
@@ -1116,8 +1168,8 @@ def request_gemini(
     configuration: dict[str, Any],
     search_context: str = "",
 ) -> str:
-    api_key = configuration["gemini_api_key"]
-    if not api_key:
+    api_keys = configuration["gemini_api_keys"]
+    if not api_keys:
         raise AIServiceError("GEMINI_API_KEY is missing.")
 
     model_name = configuration["gemini_model"]
@@ -1137,40 +1189,59 @@ def request_gemini(
         ),
     }
 
-    try:
-        response = requests.post(
-            endpoint,
-            headers={
-                "Content-Type": "application/json",
-                "x-goog-api-key": api_key,
-            },
-            json=payload,
-            timeout=configuration["timeout_seconds"],
-        )
-    except requests.exceptions.ConnectionError as error:
-        raise AIServiceError("Could not reach Gemini API.") from error
-    except requests.exceptions.Timeout as error:
-        raise AIServiceError("Gemini API took too long to respond.") from error
-    except requests.exceptions.RequestException as error:
-        raise AIServiceError(f"Gemini request failed: {error}") from error
+    last_error: AIServiceError | None = None
 
-    try:
-        response_data = response.json()
-    except ValueError as error:
-        raise AIServiceError("Gemini returned a non-JSON response.") from error
+    for index, api_key in enumerate(api_keys, start=1):
+        try:
+            response = requests.post(
+                endpoint,
+                headers={
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": api_key,
+                },
+                json=payload,
+                timeout=configuration["timeout_seconds"],
+            )
+        except requests.exceptions.ConnectionError as error:
+            raise AIServiceError("Could not reach Gemini API.") from error
+        except requests.exceptions.Timeout as error:
+            raise AIServiceError("Gemini API took too long to respond.") from error
+        except requests.exceptions.RequestException as error:
+            raise AIServiceError(f"Gemini request failed: {error}") from error
 
-    if not response.ok:
+        try:
+            response_data = response.json()
+        except ValueError as error:
+            raise AIServiceError("Gemini returned a non-JSON response.") from error
+
+        if response.ok:
+            return extract_gemini_reply(response_data)
+
         api_message = (
             response_data.get("error", {}).get("message")
             if isinstance(response_data, dict)
             else None
         )
-        raise AIServiceError(
+        attempt_error = AIServiceError(
             api_message
             or f"Gemini request failed with status {response.status_code}."
         )
 
-    return extract_gemini_reply(response_data)
+        if index >= len(api_keys) or not should_try_next_api_key(
+            response.status_code,
+            str(attempt_error),
+        ):
+            raise attempt_error
+
+        logger.warning(
+            "Gemini key %s/%s failed, trying next key: %s",
+            index,
+            len(api_keys),
+            attempt_error,
+        )
+        last_error = attempt_error
+
+    raise last_error or AIServiceError("Gemini request failed.")
 
 
 def request_groq(
@@ -1180,8 +1251,8 @@ def request_groq(
     configuration: dict[str, Any],
     search_context: str = "",
 ) -> str:
-    api_key = configuration["groq_api_key"]
-    if not api_key:
+    api_keys = configuration["groq_api_keys"]
+    if not api_keys:
         raise AIServiceError("GROQ_API_KEY is missing.")
 
     payload: dict[str, Any] = {
@@ -1195,40 +1266,59 @@ def request_groq(
         "temperature": 0.7,
     }
 
-    try:
-        response = requests.post(
-            f"{GROQ_API_BASE_URL}/chat/completions",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}",
-            },
-            json=payload,
-            timeout=configuration["timeout_seconds"],
-        )
-    except requests.exceptions.ConnectionError as error:
-        raise AIServiceError("Could not reach Groq API.") from error
-    except requests.exceptions.Timeout as error:
-        raise AIServiceError("Groq API took too long to respond.") from error
-    except requests.exceptions.RequestException as error:
-        raise AIServiceError(f"Groq request failed: {error}") from error
+    last_error: AIServiceError | None = None
 
-    try:
-        response_data = response.json()
-    except ValueError as error:
-        raise AIServiceError("Groq returned a non-JSON response.") from error
+    for index, api_key in enumerate(api_keys, start=1):
+        try:
+            response = requests.post(
+                f"{GROQ_API_BASE_URL}/chat/completions",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}",
+                },
+                json=payload,
+                timeout=configuration["timeout_seconds"],
+            )
+        except requests.exceptions.ConnectionError as error:
+            raise AIServiceError("Could not reach Groq API.") from error
+        except requests.exceptions.Timeout as error:
+            raise AIServiceError("Groq API took too long to respond.") from error
+        except requests.exceptions.RequestException as error:
+            raise AIServiceError(f"Groq request failed: {error}") from error
 
-    if not response.ok:
+        try:
+            response_data = response.json()
+        except ValueError as error:
+            raise AIServiceError("Groq returned a non-JSON response.") from error
+
+        if response.ok:
+            return extract_groq_reply(response_data)
+
         api_message = (
             response_data.get("error", {}).get("message")
             if isinstance(response_data, dict)
             else None
         )
-        raise AIServiceError(
+        attempt_error = AIServiceError(
             api_message
             or f"Groq request failed with status {response.status_code}."
         )
 
-    return extract_groq_reply(response_data)
+        if index >= len(api_keys) or not should_try_next_api_key(
+            response.status_code,
+            str(attempt_error),
+        ):
+            raise attempt_error
+
+        logger.warning(
+            "Groq key %s/%s failed, trying next key: %s",
+            index,
+            len(api_keys),
+            attempt_error,
+        )
+        last_error = attempt_error
+
+    raise last_error or AIServiceError("Groq request failed.")
 
 
 def request_ollama(
