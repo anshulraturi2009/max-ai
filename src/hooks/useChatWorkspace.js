@@ -26,6 +26,9 @@ import {
 
 const DEFAULT_PERSONA_ID = "other";
 const TYPING_CLEAR_DELAY_MS = 120;
+const MIN_ASSISTANT_REVEAL_MS = 900;
+const MAX_ASSISTANT_REVEAL_MS = 3200;
+const ASSISTANT_REVEAL_CHAR_MS = 18;
 
 function createClientTag(prefix = "message") {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -33,6 +36,18 @@ function createClientTag(prefix = "message") {
   }
 
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getAssistantRevealDuration(reply = "") {
+  const normalizedLength = String(reply ?? "").trim().length;
+  if (!normalizedLength) {
+    return 0;
+  }
+
+  return Math.min(
+    MAX_ASSISTANT_REVEAL_MS,
+    Math.max(MIN_ASSISTANT_REVEAL_MS, normalizedLength * ASSISTANT_REVEAL_CHAR_MS),
+  );
 }
 
 export function useChatWorkspace() {
@@ -517,17 +532,26 @@ export function useChatWorkspace() {
 
       const showAssistantReply = async () => {
         const assistantClientTag = createClientTag("assistant");
+        const revealDurationMs = getAssistantRevealDuration(assistantResponse.reply);
         addOptimisticMessage({
           id: assistantClientTag,
           clientTag: assistantClientTag,
           chatId: targetChatId,
           role: "assistant",
           content: assistantResponse.reply,
+          revealStyle: "typewriter",
+          revealDurationMs,
           timestamp: Date.now(),
         });
         setThinkingState(null);
 
         try {
+          if (revealDurationMs > 0) {
+            await new Promise((resolve) =>
+              window.setTimeout(resolve, revealDurationMs),
+            );
+          }
+
           await persistAssistantReply(assistantClientTag);
         } catch {
           removeOptimisticMessage(assistantClientTag);

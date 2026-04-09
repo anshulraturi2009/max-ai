@@ -6,7 +6,21 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0"
     />
-    <meta name="theme-color" content="#020617" />
+    <script>
+      (function () {
+        try {
+          var mode = localStorage.getItem("max-ai-theme") || "system";
+          var systemDark =
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var resolved = mode === "system" ? (systemDark ? "dark" : "light") : mode;
+          document.documentElement.classList.remove("theme-light", "theme-dark");
+          document.documentElement.classList.add("theme-" + resolved);
+          document.documentElement.style.colorScheme = resolved;
+        } catch (error) {}
+      })();
+    </script>
+    <meta name="theme-color" content="#050816" />
     <meta
       name="description"
       content="MAX AI is a fast AI chat app with voice, files, admin access, and install support."
@@ -14,11 +28,171 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MAX AI" />
+    <meta name="msapplication-TileColor" content="#050816" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="icon" type="image/x-icon" href="/max-ai-favicon-v3.ico" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/max-ai-icon-192-v3.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/max-ai-icon-512-v3.png" />
+    <link rel="apple-touch-icon" href="/max-ai-apple-touch-v3.png" />
+    <style>
+      html,
+      body {
+        background: #050816;
+      }
+
+      #app-boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at top, rgba(96, 165, 250, 0.18), transparent 34%),
+          radial-gradient(circle at bottom, rgba(251, 146, 60, 0.18), transparent 30%),
+          #050816;
+        color: #f8fafc;
+        transition:
+          opacity 0.35s ease,
+          visibility 0.35s ease;
+      }
+
+      .theme-light #app-boot-splash {
+        background:
+          radial-gradient(circle at top, rgba(96, 165, 250, 0.14), transparent 34%),
+          radial-gradient(circle at bottom, rgba(251, 146, 60, 0.12), transparent 30%),
+          #eef4ff;
+        color: #0f172a;
+      }
+
+      #app-boot-splash::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        opacity: 0.24;
+        background-image:
+          linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+        background-size: 72px 72px;
+      }
+
+      .app-boot-splash__card {
+        position: relative;
+        display: flex;
+        width: min(90vw, 24rem);
+        flex-direction: column;
+        align-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 2rem;
+        padding: 2.25rem 2rem;
+        text-align: center;
+        background: rgba(2, 6, 23, 0.72);
+        backdrop-filter: blur(24px);
+        box-shadow: 0 30px 80px rgba(2, 6, 23, 0.82);
+      }
+
+      .theme-light .app-boot-splash__card {
+        border-color: rgba(203, 213, 225, 0.9);
+        background: rgba(255, 255, 255, 0.86);
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
+      }
+
+      .app-boot-splash__icon {
+        width: min(42vw, 10rem);
+        height: min(42vw, 10rem);
+        border-radius: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.72);
+      }
+
+      .app-boot-splash__chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 1.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 999px;
+        padding: 0.5rem 0.9rem;
+        background: rgba(255, 255, 255, 0.04);
+        color: #cbd5e1;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+      }
+
+      .theme-light .app-boot-splash__chip {
+        border-color: rgba(203, 213, 225, 0.9);
+        background: rgba(255, 255, 255, 0.8);
+        color: #64748b;
+      }
+
+      .app-boot-splash__dot {
+        width: 0.65rem;
+        height: 0.65rem;
+        border-radius: 999px;
+        background: #fb923c;
+        box-shadow: 0 0 18px rgba(251, 146, 60, 0.85);
+        animation: app-boot-pulse 1.2s ease-in-out infinite;
+      }
+
+      .app-boot-splash__title {
+        margin-top: 1.35rem;
+        font-size: clamp(2rem, 4vw, 2.6rem);
+        font-weight: 600;
+        letter-spacing: 0.26em;
+      }
+
+      .app-boot-splash__label {
+        margin-top: 0.85rem;
+        max-width: 18rem;
+        color: #cbd5e1;
+        font-size: 0.95rem;
+        line-height: 1.7;
+      }
+
+      .theme-light .app-boot-splash__title {
+        color: #0f172a;
+      }
+
+      .theme-light .app-boot-splash__label {
+        color: #475569;
+      }
+
+      .app-boot-splash--hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      @keyframes app-boot-pulse {
+        0%,
+        100% {
+          transform: scale(0.88);
+          opacity: 0.72;
+        }
+
+        50% {
+          transform: scale(1.08);
+          opacity: 1;
+        }
+      }
+    </style>
     <title>MAX AI</title>
   </head>
   <body>
+    <div id="app-boot-splash" aria-hidden="true">
+      <div class="app-boot-splash__card">
+        <img class="app-boot-splash__icon" src="/max-ai-icon-512-v3.png" alt="" />
+        <div class="app-boot-splash__chip">
+          <span class="app-boot-splash__dot"></span>
+          Premium AI Workspace
+        </div>
+        <div class="app-boot-splash__title">MAX AI</div>
+        <div class="app-boot-splash__label">Loading your premium AI workspace...</div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

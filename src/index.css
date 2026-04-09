@@ -18,7 +18,19 @@
   }
 
   body {
-    @apply min-h-screen bg-slate-950 font-sans text-slate-100 antialiased;
+    @apply min-h-screen font-sans text-slate-100 antialiased;
+    background:
+      radial-gradient(circle at top, rgba(255, 107, 53, 0.12), transparent 28%),
+      radial-gradient(circle at bottom right, rgba(34, 211, 238, 0.12), transparent 24%),
+      #060b16;
+  }
+
+  html.theme-light body {
+    color: #0f172a;
+    background:
+      radial-gradient(circle at top, rgba(251, 146, 60, 0.12), transparent 28%),
+      radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.12), transparent 24%),
+      #eef4ff;
   }
 
   ::selection {
@@ -35,10 +47,19 @@
     background: #020617;
   }
 
+  html.theme-light ::-webkit-scrollbar-track {
+    background: #e2e8f0;
+  }
+
   ::-webkit-scrollbar-thumb {
     border-radius: 999px;
     background: #334155;
     border: 2px solid #020617;
+  }
+
+  html.theme-light ::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-color: #e2e8f0;
   }
 
   textarea {
@@ -48,7 +69,11 @@
 
 @layer components {
   .panel {
-    @apply rounded-2xl border border-slate-800 bg-slate-900 text-slate-100 shadow-[0_18px_40px_rgba(0,0,0,0.18)];
+    @apply rounded-[26px] border text-slate-100;
+    border-color: rgba(255, 255, 255, 0.1);
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.84), rgba(6, 11, 22, 0.94));
+    box-shadow: 0 24px 64px rgba(8, 15, 35, 0.32);
+    backdrop-filter: blur(24px);
   }
 
   .panel-glow {
@@ -56,7 +81,12 @@
   }
 
   .input-shell {
-    @apply rounded-2xl border border-slate-800 bg-slate-900;
+    @apply rounded-[30px] border;
+    border-color: rgba(255, 255, 255, 0.1);
+    background:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(6, 11, 22, 0.94));
+    box-shadow: 0 26px 80px rgba(8, 15, 35, 0.32);
+    backdrop-filter: blur(28px);
   }
 
   .status-chip {
@@ -64,14 +94,77 @@
   }
 
   .message-bubble-user {
-    @apply border-slate-700 bg-slate-800 text-slate-100;
+    border-color: rgba(34, 211, 238, 0.18);
+    background:
+      linear-gradient(135deg, rgba(14, 165, 233, 0.28), rgba(37, 99, 235, 0.38)),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.84), rgba(8, 15, 35, 0.92));
+    color: rgb(248 250 252);
   }
 
   .message-bubble-ai {
-    @apply border-slate-800 bg-slate-900 text-slate-100;
+    border-color: rgba(255, 255, 255, 0.08);
+    background:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.84), rgba(6, 11, 22, 0.92));
+    color: rgb(248 250 252);
   }
 
   .safe-bottom {
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+  }
+
+  .agent-shell-panel {
+    @apply rounded-[28px] border text-slate-100;
+    border-color: rgba(255, 255, 255, 0.1);
+    background:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(6, 11, 22, 0.92));
+    box-shadow: 0 24px 70px rgba(8, 15, 35, 0.3);
+    backdrop-filter: blur(24px);
+  }
+
+  html.theme-light .panel {
+    color: #0f172a;
+    border-color: rgba(203, 213, 225, 0.95);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(241, 245, 249, 0.94));
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  }
+
+  html.theme-light .input-shell {
+    border-color: rgba(203, 213, 225, 0.95);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(241, 245, 249, 0.96));
+    box-shadow: 0 20px 52px rgba(15, 23, 42, 0.08);
+  }
+
+  html.theme-light .message-bubble-user {
+    border-color: rgba(56, 189, 248, 0.18);
+    background:
+      linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(59, 130, 246, 0.16)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(241, 245, 249, 0.98));
+    color: #0f172a;
+  }
+
+  html.theme-light .message-bubble-ai {
+    border-color: rgba(203, 213, 225, 0.95);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(241, 245, 249, 0.98));
+    color: #0f172a;
+  }
+
+  html.theme-light .agent-shell-panel {
+    color: #0f172a;
+    border-color: rgba(203, 213, 225, 0.95);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(241, 245, 249, 0.95));
+    box-shadow: 0 22px 58px rgba(15, 23, 42, 0.08);
+  }
+}
+
+@media (max-width: 768px) {
+  @layer components {
+    .panel,
+    .input-shell,
+    .agent-shell-panel,
+    .message-bubble-user,
+    .message-bubble-ai {
+      box-shadow: 0 14px 34px rgba(8, 15, 35, 0.24);
+      backdrop-filter: blur(12px);
+    }
   }
 }

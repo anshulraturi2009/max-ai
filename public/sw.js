@@ -1,5 +1,12 @@
-const CACHE_NAME = "max-ai-shell-v1";
-const APP_SHELL = ["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
+const CACHE_NAME = "max-ai-shell-v3";
+const APP_SHELL = [
+  "/",
+  "/manifest.webmanifest",
+  "/max-ai-favicon-v3.ico",
+  "/max-ai-apple-touch-v3.png",
+  "/max-ai-icon-192-v3.png",
+  "/max-ai-icon-512-v3.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

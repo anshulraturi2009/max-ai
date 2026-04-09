@@ -1,17 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import ChatHeader from "../components/chat/ChatHeader";
 import InputBar from "../components/chat/InputBar";
 import MessageBubble from "../components/chat/MessageBubble";
+import ParticleBackground from "../components/chat/ParticleBackground";
 import Sidebar from "../components/chat/Sidebar";
 import TypingIndicator from "../components/chat/TypingIndicator";
 import VideoGenerationIndicator from "../components/chat/VideoGenerationIndicator";
 import { useAuth } from "../context/AuthContext";
 import { useChatWorkspace } from "../hooks/useChatWorkspace";
 import { useVoiceCall } from "../hooks/useVoiceCall";
+import { useTheme } from "../context/ThemeContext";
 
 export default function ChatPage() {
   const { user, isAdmin, signOutUser } = useAuth();
+  const prefersReducedMotion = useReducedMotion();
+  const { resolvedTheme } = useTheme();
   const {
     filteredChats,
     activeChat,
@@ -29,14 +33,41 @@ export default function ChatPage() {
     submitMessage,
   } = useChatWorkspace();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [compactVisuals, setCompactVisuals] = useState(false);
   const scrollContainerRef = useRef(null);
   const isThinking = thinkingState?.chatId === activeChatId;
   const thinkingStage = isThinking ? thinkingState?.stage || "thinking" : "thinking";
+  const reduceEffects = compactVisuals || prefersReducedMotion;
+  const isLight = resolvedTheme === "light";
   const voiceCall = useVoiceCall({
     messages: activeChat?.messages || [],
     isThinking,
     onSend: submitMessage,
   });
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return undefined;
+    }
+
+    const mobileQuery = window.matchMedia("(max-width: 768px)");
+    const lowPowerDevice =
+      (typeof navigator !== "undefined" &&
+        ((navigator.deviceMemory && navigator.deviceMemory <= 4) ||
+          (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 6))) ||
+      false;
+
+    const updateCompactVisuals = () => {
+      setCompactVisuals(Boolean(mobileQuery.matches || lowPowerDevice));
+    };
+
+    updateCompactVisuals();
+    mobileQuery.addEventListener?.("change", updateCompactVisuals);
+
+    return () => {
+      mobileQuery.removeEventListener?.("change", updateCompactVisuals);
+    };
+  }, []);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -63,8 +94,65 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-slate-950 text-slate-100">
-      <div className="flex h-full w-full overflow-hidden">
+    <div
+      className={`relative h-[100dvh] overflow-hidden ${
+        isLight ? "bg-[#eef4ff] text-slate-900" : "bg-[#08111f] text-slate-100"
+      }`}
+    >
+      <div className="pointer-events-none absolute inset-0">
+        <div
+          className={`absolute inset-0 ${
+            isLight
+              ? "bg-[radial-gradient(circle_at_top_left,rgba(251,146,60,0.18),transparent_30%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.16),transparent_28%),radial-gradient(circle_at_bottom,rgba(96,165,250,0.14),transparent_34%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_55%,#e7eefb_100%)]"
+              : "bg-[radial-gradient(circle_at_top_left,rgba(255,107,53,0.18),transparent_30%),radial-gradient(circle_at_top_right,rgba(34,211,238,0.16),transparent_28%),radial-gradient(circle_at_bottom,rgba(59,130,246,0.12),transparent_35%),linear-gradient(180deg,#08111f_0%,#0b1222_48%,#060b16_100%)]"
+          }`}
+        />
+        {!reduceEffects ? (
+          <>
+            <div
+              className={`absolute inset-0 [background-image:linear-gradient(rgba(148,163,184,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.16)_1px,transparent_1px)] [background-size:64px_64px] ${
+                isLight ? "opacity-[0.08]" : "opacity-[0.12]"
+              }`}
+            />
+            <motion.div
+              className={`absolute left-[10%] top-[-10%] h-[24rem] w-[24rem] rounded-full blur-3xl ${
+                isLight ? "bg-orange-400/18" : "bg-orange-500/20"
+              }`}
+              animate={{ y: [0, 24, 0], x: [0, 30, 0], scale: [1, 1.08, 1] }}
+              transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <motion.div
+              className={`absolute bottom-[-14%] right-[6%] h-[26rem] w-[26rem] rounded-full blur-3xl ${
+                isLight ? "bg-sky-400/14" : "bg-cyan-400/16"
+              }`}
+              animate={{ y: [0, -26, 0], x: [0, -20, 0], scale: [1, 1.12, 1] }}
+              transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <ParticleBackground />
+          </>
+        ) : (
+          <>
+            <div
+              className={`absolute inset-0 [background-image:linear-gradient(rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:84px_84px] ${
+                isLight ? "opacity-[0.05]" : "opacity-[0.07]"
+              }`}
+            />
+            <div
+              className={`absolute left-[6%] top-[-8%] h-[14rem] w-[14rem] rounded-full blur-3xl ${
+                isLight ? "bg-orange-400/10" : "bg-orange-500/12"
+              }`}
+            />
+            <div
+              className={`absolute bottom-[-10%] right-[4%] h-[15rem] w-[15rem] rounded-full blur-3xl ${
+                isLight ? "bg-sky-400/10" : "bg-cyan-400/10"
+              }`}
+            />
+            <ParticleBackground lite />
+          </>
+        )}
+      </div>
+
+      <div className="relative flex h-full w-full overflow-hidden">
         <Sidebar
           mobileOpen={mobileSidebarOpen}
           setMobileOpen={setMobileSidebarOpen}
@@ -91,11 +179,23 @@ export default function ChatPage() {
           />
 
           {voiceCall.callActive ? (
-            <div className="border-b border-slate-800 bg-slate-950 px-4 py-3 sm:px-6">
-              <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-50">
+            <div
+              className={`px-4 py-3 backdrop-blur-xl sm:px-6 ${
+                isLight
+                  ? "border-b border-slate-200/80 bg-white/55"
+                  : "border-b border-white/10 bg-slate-950/40"
+              }`}
+            >
+              <div
+                className={`mx-auto flex w-full max-w-5xl flex-col gap-2 rounded-[24px] border px-4 py-3 text-sm shadow-[0_16px_40px_rgba(5,12,24,0.14)] ${
+                  isLight
+                    ? "border-emerald-300/30 bg-emerald-50 text-emerald-900"
+                    : "border-emerald-300/20 bg-emerald-400/10 text-emerald-50"
+                }`}
+              >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300" />
+                    <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.8)]" />
                     <span className="font-medium">
                       Voice call {voiceCall.callStage === "speaking" ? "live" : "active"}
                     </span>
@@ -105,12 +205,18 @@ export default function ChatPage() {
                   </span>
                 </div>
 
-                <p className="text-sm text-emerald-50/90">
+                <p className={`text-sm ${isLight ? "text-emerald-900/90" : "text-emerald-50/90"}`}>
                   {voiceCall.feedback || "Phone button dobara dabao to call end ho jayegi."}
                 </p>
 
                 {voiceCall.transcript ? (
-                  <p className="rounded-xl border border-emerald-300/15 bg-slate-950/25 px-3 py-2 text-sm leading-6 text-emerald-50/85">
+                  <p
+                    className={`rounded-2xl border px-3 py-2 text-sm leading-6 ${
+                      isLight
+                        ? "border-emerald-200 bg-white/70 text-emerald-900/85"
+                        : "border-emerald-300/15 bg-slate-950/30 text-emerald-50/85"
+                    }`}
+                  >
                     {voiceCall.transcript}
                   </p>
                 ) : null}
@@ -123,9 +229,15 @@ export default function ChatPage() {
               ref={scrollContainerRef}
               className="h-full overflow-y-auto px-4 py-5 sm:px-6"
             >
-              <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 pb-6">
+              <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 pb-8">
                 {syncError ? (
-                  <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                  <div
+                    className={`rounded-[24px] border px-4 py-3 text-sm shadow-[0_18px_44px_rgba(120,53,15,0.12)] backdrop-blur-xl ${
+                      isLight
+                        ? "border-amber-300 bg-amber-50 text-amber-900"
+                        : "border-amber-400/20 bg-amber-500/10 text-amber-100"
+                    }`}
+                  >
                     {syncError}
                   </div>
                 ) : null}
@@ -146,13 +258,28 @@ export default function ChatPage() {
                     ) : null}
                   </AnimatePresence>
                 ) : (
-                  <div className="panel flex min-h-[320px] flex-col items-center justify-center px-6 text-center">
-                    <h2 className="text-2xl font-semibold text-white">
+                  <div className="agent-shell-panel flex min-h-[340px] flex-col items-center justify-center px-6 text-center">
+                    <div
+                      className={`mb-4 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.28em] ${
+                        isLight
+                          ? "border border-slate-200 bg-white/80 text-slate-500"
+                          : "border border-white/10 bg-white/[0.04] text-slate-300"
+                      }`}
+                    >
+                      <span className="h-2 w-2 rounded-full bg-orange-400 shadow-[0_0_16px_rgba(251,146,60,0.9)]" />
+                      AI Agent UI
+                    </div>
+                    <h2 className={`text-3xl font-semibold sm:text-4xl ${isLight ? "text-slate-900" : "text-white"}`}>
                       Start a conversation
                     </h2>
-                    <p className="mt-3 max-w-md text-sm leading-7 text-slate-400">
-                      Simple chat mode active. Message bhejo, voice use karo, ya files
-                      attach karo.
+                    <p
+                      className={`mt-4 max-w-xl text-sm leading-7 sm:text-base ${
+                        isLight ? "text-slate-600" : "text-slate-300"
+                      }`}
+                    >
+                      Prompt bhejo, voice call start karo, files attach karo, ya text se
+                      video generate karao. MAX AI ab ek cinematic workspace style me ready
+                      hai.
                     </p>
                   </div>
                 )}
@@ -160,7 +287,7 @@ export default function ChatPage() {
             </div>
           </div>
 
-          <div className="mx-auto w-full max-w-4xl">
+          <div className="mx-auto w-full max-w-5xl">
             <InputBar
               draft={draft}
               setDraft={setDraft}

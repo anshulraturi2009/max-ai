@@ -10,6 +10,7 @@ import {
   SendHorizonal,
   X,
 } from "lucide-react";
+import { useTheme } from "../../context/ThemeContext";
 
 const MAX_ATTACHMENTS = 8;
 const MAX_TEXT_FILE_SIZE_BYTES = 256 * 1024;
@@ -162,6 +163,8 @@ export default function InputBar({
   onToggleVoiceCall,
   canClear = false,
 }) {
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === "light";
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
@@ -392,29 +395,59 @@ export default function InputBar({
     : statusMessage || voiceCallFeedback;
 
   return (
-    <div className="safe-bottom z-20 shrink-0 border-t border-white/10 bg-gradient-to-t from-slate-950 via-slate-950/95 to-slate-950/90 px-3 pt-3 sm:px-6 sm:pt-4">
-      <div className="input-shell mx-auto max-w-none p-2.5 sm:p-3">
-        <div className="mb-2 flex flex-wrap items-center justify-end gap-2 sm:mb-3">
-          <div className="flex items-center gap-2">
+    <div
+      className={`safe-bottom z-20 shrink-0 px-2 pt-2 backdrop-blur-2xl sm:px-6 sm:pt-4 ${
+        isLight
+          ? "border-t border-slate-200/80 bg-white/50"
+          : "border-t border-white/10 bg-slate-950/35"
+      }`}
+    >
+      <div className="input-shell mx-auto max-w-none p-2.5 sm:p-4">
+        <div className="mb-2 flex flex-wrap items-center justify-end gap-2 sm:mb-3 sm:justify-between sm:gap-3">
+          <div
+            className={`hidden items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] sm:inline-flex ${
+              isLight
+                ? "border border-slate-200 bg-white/80 text-slate-500"
+                : "border border-white/10 bg-white/[0.04] text-slate-300"
+            }`}
+          >
+            <span className="h-2 w-2 rounded-full bg-orange-400 shadow-[0_0_16px_rgba(251,146,60,0.9)]" />
+            AI Agent Console
+          </div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <div className="relative" ref={menuRef}>
               <button
                 type="button"
                 title="Add files or folder"
                 onClick={() => setAttachmentMenuOpen((current) => !current)}
-                className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/[0.05] text-slate-300 transition hover:bg-white/[0.08] sm:h-11 sm:w-11"
+                className={`grid h-9 w-9 place-items-center rounded-2xl border transition hover:-translate-y-0.5 sm:h-11 sm:w-11 ${
+                  isLight
+                    ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                    : "border-white/10 bg-white/[0.05] text-slate-300 hover:bg-white/[0.09]"
+                }`}
               >
                 <Paperclip className="h-4 w-4" />
               </button>
 
               {attachmentMenuOpen ? (
-                <div className="absolute right-0 top-[calc(100%+0.6rem)] z-30 min-w-[190px] rounded-[22px] border border-white/10 bg-slate-950/95 p-2 shadow-[0_20px_60px_rgba(2,8,23,0.48)] backdrop-blur-2xl">
+                <div
+                  className={`absolute right-0 top-[calc(100%+0.6rem)] z-30 min-w-[190px] rounded-[22px] border p-2 shadow-[0_20px_60px_rgba(2,8,23,0.18)] backdrop-blur-2xl ${
+                    isLight
+                      ? "border-slate-200 bg-white/95"
+                      : "border-white/10 bg-slate-950/95"
+                  }`}
+                >
                   <button
                     type="button"
                     onClick={() => {
                       setAttachmentMenuOpen(false);
                       fileInputRef.current?.click();
                     }}
-                    className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm text-slate-200 transition hover:bg-white/[0.06]"
+                    className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm transition ${
+                      isLight
+                        ? "text-slate-700 hover:bg-slate-100"
+                        : "text-slate-200 hover:bg-white/[0.06]"
+                    }`}
                   >
                     <Paperclip className="h-4 w-4" />
                     Add files
@@ -425,7 +458,11 @@ export default function InputBar({
                       setAttachmentMenuOpen(false);
                       folderInputRef.current?.click();
                     }}
-                    className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm text-slate-200 transition hover:bg-white/[0.06]"
+                    className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm transition ${
+                      isLight
+                        ? "text-slate-700 hover:bg-slate-100"
+                        : "text-slate-200 hover:bg-white/[0.06]"
+                    }`}
                   >
                     <FolderOpen className="h-4 w-4" />
                     Add folder
@@ -444,10 +481,12 @@ export default function InputBar({
               }
               onClick={handleVoiceCallToggle}
               disabled={disabled && !voiceCallActive}
-              className={`grid h-10 w-10 place-items-center rounded-2xl border transition sm:h-11 sm:w-11 ${
+              className={`grid h-9 w-9 place-items-center rounded-2xl border transition sm:h-11 sm:w-11 ${
                 voiceCallActive
-                  ? "border-emerald-300/30 bg-emerald-300/15 text-emerald-100"
-                  : "border-white/10 bg-white/[0.05] text-slate-300 hover:bg-white/[0.08]"
+                  ? "border-emerald-300/30 bg-emerald-300/15 text-emerald-100 shadow-[0_0_28px_rgba(52,211,153,0.18)]"
+                  : isLight
+                    ? "border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:bg-slate-100"
+                    : "border-white/10 bg-white/[0.05] text-slate-300 hover:-translate-y-0.5 hover:bg-white/[0.09]"
               } disabled:cursor-not-allowed disabled:opacity-60`}
             >
               {voiceCallActive ? (
@@ -467,10 +506,12 @@ export default function InputBar({
               }
               onClick={toggleSpeechToText}
               disabled={disabled || voiceCallActive}
-              className={`grid h-10 w-10 place-items-center rounded-2xl border transition sm:h-11 sm:w-11 ${
+              className={`grid h-9 w-9 place-items-center rounded-2xl border transition sm:h-11 sm:w-11 ${
                 isListening
-                  ? "border-cyan-300/30 bg-cyan-300/15 text-cyan-100"
-                  : "border-white/10 bg-white/[0.05] text-slate-300 hover:bg-white/[0.08]"
+                  ? "border-cyan-300/30 bg-cyan-300/15 text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.18)]"
+                  : isLight
+                    ? "border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:bg-slate-100"
+                    : "border-white/10 bg-white/[0.05] text-slate-300 hover:-translate-y-0.5 hover:bg-white/[0.09]"
               } disabled:cursor-not-allowed disabled:opacity-60`}
             >
               <Mic className="h-4 w-4" />
@@ -479,7 +520,11 @@ export default function InputBar({
               <button
                 type="button"
                 onClick={onClear}
-                className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/[0.05] text-slate-300 transition hover:bg-white/[0.08] sm:h-11 sm:w-11"
+                className={`grid h-9 w-9 place-items-center rounded-2xl border transition hover:-translate-y-0.5 sm:h-11 sm:w-11 ${
+                  isLight
+                    ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                    : "border-white/10 bg-white/[0.05] text-slate-300 hover:bg-white/[0.09]"
+                }`}
               >
                 <Eraser className="h-4 w-4" />
               </button>
@@ -508,7 +553,11 @@ export default function InputBar({
             {attachments.map((attachment) => (
               <div
                 key={attachment.id}
-                className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-xs text-slate-200"
+                className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-2 text-xs shadow-[0_10px_28px_rgba(8,15,35,0.08)] ${
+                  isLight
+                    ? "border-slate-200 bg-white text-slate-700"
+                    : "border-white/10 bg-white/[0.05] text-slate-200"
+                }`}
               >
                 {attachment.kind === "folder" ? (
                   <FolderOpen className="h-3.5 w-3.5 shrink-0 text-cyan-200" />
@@ -530,7 +579,13 @@ export default function InputBar({
         ) : null}
 
         {attachmentsLoading || helperMessage ? (
-          <div className="mb-3 flex items-center gap-2 px-2 text-xs text-slate-400 sm:px-3">
+          <div
+            className={`mb-2 flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs sm:mb-3 sm:px-3 ${
+              isLight
+                ? "border-slate-200 bg-white/80 text-slate-500"
+                : "border-white/8 bg-white/[0.03] text-slate-400"
+            }`}
+          >
             {attachmentsLoading ? (
               <LoaderCircle className="h-3.5 w-3.5 animate-spin text-cyan-200" />
             ) : (
@@ -548,26 +603,36 @@ export default function InputBar({
           </div>
         ) : null}
 
-        <div className="flex items-end gap-2 sm:gap-3">
+        <div
+          className={`rounded-[24px] border p-1.5 shadow-[0_20px_44px_rgba(8,15,35,0.14)] sm:rounded-[28px] sm:p-3 ${
+            isLight
+              ? "border-slate-200 bg-white"
+              : "border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.86),rgba(6,11,22,0.92))]"
+          }`}
+        >
+          <div className="flex items-end gap-2 sm:gap-3">
           <textarea
             ref={textareaRef}
             rows={1}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask MAX AI anything..."
-            className="max-h-[180px] min-h-[52px] flex-1 bg-transparent px-2 py-3 text-sm leading-7 text-white outline-none placeholder:text-slate-500 sm:min-h-[64px] sm:px-3 sm:py-4"
+            placeholder="Message MAX AI..."
+            className={`max-h-[150px] min-h-[44px] flex-1 bg-transparent px-3 py-2 text-sm leading-7 outline-none sm:max-h-[180px] sm:min-h-[68px] sm:px-4 sm:py-4 ${
+              isLight ? "text-slate-900 placeholder:text-slate-400" : "text-white placeholder:text-slate-500"
+            }`}
           />
 
           <button
             type="button"
             onClick={handleSend}
             disabled={disabled || (!draft.trim() && !attachments.length)}
-            className="inline-flex h-12 items-center gap-2 rounded-[18px] bg-white px-4 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:h-14 sm:rounded-[20px] sm:px-5"
+            className="inline-flex h-10 items-center gap-2 rounded-[18px] bg-gradient-to-r from-orange-500 to-orange-400 px-4 text-sm font-semibold text-white shadow-[0_18px_42px_rgba(249,115,22,0.32)] transition hover:-translate-y-0.5 hover:from-orange-400 hover:to-orange-300 disabled:cursor-not-allowed disabled:opacity-50 sm:h-14 sm:rounded-[20px] sm:px-5"
           >
             <span className="hidden sm:inline">Send</span>
             <SendHorizonal className="h-4 w-4" />
           </button>
+        </div>
         </div>
       </div>
     </div>
