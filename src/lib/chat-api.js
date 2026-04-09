@@ -67,6 +67,12 @@ const anshulPatterns = [
   /\banshul\s+kon\s+hai\b/iu,
 ];
 
+const videoCapabilityPatterns = [
+  /\b(video|clip|reel)\b.*\b(bana\s+sakte|bana\s+skte|generate\s+kar\s+sakte|create\s+kar\s+sakte|make)\b/iu,
+  /\b(can\s+you|are\s+you\s+able\s+to)\b.*\b(video|clip|reel)\b/iu,
+  /\b(kya|tum|aap)\b.*\b(video|clip|reel)\b.*\b(bana\s+sakte|bana\s+skte)\b/iu,
+];
+
 export function predictSearchIntent(message = "") {
   return searchHintPatterns.some((pattern) => pattern.test(message));
 }
@@ -115,6 +121,18 @@ function createIdentityReply(message) {
 
   if (matchesPattern(message, creatorPatterns)) {
     return "Mujhe Anshul Raturi ne banaya hai. Anshul Raturi is a young Indian founder and he belongs to Uttarakhand.";
+  }
+
+  return "";
+}
+
+function createCapabilityReply(message) {
+  if (matchesPattern(message, videoCapabilityPatterns)) {
+    return (
+      "Haan, is app me main text se video generate kar sakta hu. " +
+      "Bas likho: ek video banao jisme ek aadmi gadi chala raha ho. " +
+      "Uske baad video generation start ho jayegi aur ready hote hi niche video box me dikhegi."
+    );
   }
 
   return "";
@@ -372,6 +390,16 @@ export async function generateAssistantReply({
       engine: buildEngineSnapshot("max-ai", "creator-identity", "ready", "identity"),
       delayMs: 0,
       activityType: "identity",
+    };
+  }
+
+  const capabilityReply = createCapabilityReply(message);
+  if (capabilityReply) {
+    return {
+      reply: capabilityReply,
+      engine: buildEngineSnapshot("max-ai", "feature-capability", "ready", "capability"),
+      delayMs: 0,
+      activityType: "capability",
     };
   }
 

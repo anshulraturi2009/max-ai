@@ -105,6 +105,20 @@ CREATOR_PATTERNS = (
     "who is anshul raturi",
 )
 
+VIDEO_CAPABILITY_PATTERNS = (
+    "video bana sakte",
+    "video bana skte",
+    "video generate kar sakte",
+    "video create kar sakte",
+    "can you generate video",
+    "can you make video",
+    "can you create video",
+    "are you able to generate video",
+    "kya tum video bana sakte ho",
+    "kya tum video bana skte ho",
+    "kya aap video bana sakte ho",
+)
+
 SEARCH_HINT_PATTERNS = [
     re.compile(pattern, re.IGNORECASE)
     for pattern in (
@@ -409,6 +423,19 @@ def build_creator_reply(user_message: str) -> str:
     return (
         "Mujhe Anshul Raturi ne banaya hai. "
         "Wo Uttarakhand se belong karne wale ek young Indian founder hain."
+    )
+
+
+def matches_video_capability_query(user_message: str) -> bool:
+    normalized = user_message.strip().lower()
+    return any(pattern in normalized for pattern in VIDEO_CAPABILITY_PATTERNS)
+
+
+def build_video_capability_reply() -> str:
+    return (
+        "Haan, is app me main text se video generate kar sakta hu. "
+        "Bas likho: ek video banao jisme ek aadmi gadi chala raha ho. "
+        "Uske baad video generation start ho jayegi aur ready hote hi niche video box me dikhegi."
     )
 
 
@@ -1499,6 +1526,18 @@ def chat():
                     "provider": "max-ai",
                     "model": "creator-identity",
                     "activityType": "identity",
+                    "searchUsed": False,
+                }
+            )
+
+        if matches_video_capability_query(user_message):
+            logger.info("Resolved video capability override locally.")
+            return jsonify(
+                {
+                    "reply": build_video_capability_reply(),
+                    "provider": "max-ai",
+                    "model": "feature-capability",
+                    "activityType": "capability",
                     "searchUsed": False,
                 }
             )
