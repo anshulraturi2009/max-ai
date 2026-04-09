@@ -15,9 +15,11 @@ export default function ChatHeader({
       ? "Offline"
       : engine?.status === "waking"
         ? "Waking"
+      : isThinking && thinkingStage === "rendering-video"
+        ? "Rendering video"
       : isThinking && thinkingStage === "searching"
         ? "Searching"
-        : isThinking
+      : isThinking
           ? "Thinking"
           : "Ready";
 

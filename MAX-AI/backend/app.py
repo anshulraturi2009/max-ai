@@ -5,9 +5,10 @@ import os
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote, urlparse
 
 import requests
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, jsonify, request, stream_with_context
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -17,6 +18,7 @@ SYSTEM_PROMPT_PATH = BASE_DIR / "prompts" / "systemPrompt.txt"
 OLLAMA_URL = "http://localhost:11434/api/generate"
 DEFAULT_OLLAMA_MODEL = "llama3.2:1b"
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_VEO_MODEL = "veo-3.1-lite-generate-preview"
 DEFAULT_PROVIDER = "auto"
 REQUEST_TIMEOUT_SECONDS = 120
 WEB_SEARCH_TIMEOUT_SECONDS = 18
@@ -27,6 +29,16 @@ DEFAULT_ELEVENLABS_MODEL = "eleven_multilingual_v2"
 DEFAULT_ELEVENLABS_OUTPUT_FORMAT = "mp3_44100_128"
 DEFAULT_ELEVENLABS_TIMEOUT_SECONDS = 45
 MAX_TTS_CHARS = 1800
+DEFAULT_VIDEO_RESOLUTION = "720p"
+DEFAULT_VIDEO_ASPECT_RATIO = "16:9"
+DEFAULT_VIDEO_DURATION_SECONDS = "8"
+DEFAULT_VIDEO_POLL_INTERVAL_SECONDS = 10
+MAX_VIDEO_PROMPT_CHARS = 2000
+GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+ALLOWED_VIDEO_DOWNLOAD_HOST_SUFFIXES = (
+    "googleapis.com",
+    "googleusercontent.com",
+)
 DEFAULT_ALLOWED_ORIGINS = (
     "https://max-ai-a030a.web.app",
     "https://max-ai-a030a.firebaseapp.com",
@@ -277,6 +289,40 @@ def get_voice_runtime_configuration() -> dict[str, Any]:
     }
 
 
+def get_video_runtime_configuration() -> dict[str, Any]:
+    return {
+        "api_key": (
+            os.getenv("GEMINI_VIDEO_API_KEY", "").strip()
+            or os.getenv("GEMINI_API_KEY", "").strip()
+        ),
+        "model": os.getenv("VEO_MODEL", DEFAULT_VEO_MODEL).strip() or DEFAULT_VEO_MODEL,
+        "resolution": (
+            os.getenv("VEO_RESOLUTION", DEFAULT_VIDEO_RESOLUTION).strip()
+            or DEFAULT_VIDEO_RESOLUTION
+        ),
+        "aspect_ratio": (
+            os.getenv("VEO_ASPECT_RATIO", DEFAULT_VIDEO_ASPECT_RATIO).strip()
+            or DEFAULT_VIDEO_ASPECT_RATIO
+        ),
+        "duration_seconds": (
+            os.getenv("VEO_DURATION_SECONDS", DEFAULT_VIDEO_DURATION_SECONDS).strip()
+            or DEFAULT_VIDEO_DURATION_SECONDS
+        ),
+        "poll_interval_seconds": int(
+            os.getenv(
+                "VEO_POLL_INTERVAL_SECONDS",
+                str(DEFAULT_VIDEO_POLL_INTERVAL_SECONDS),
+            )
+        ),
+        "request_timeout_seconds": int(
+            os.getenv(
+                "VEO_REQUEST_TIMEOUT_SECONDS",
+                str(REQUEST_TIMEOUT_SECONDS),
+            )
+        ),
+    }
+
+
 def resolve_provider(configuration: dict[str, Any]) -> str:
     if configuration["provider"] == "gemini":
         if not configuration["gemini_api_key"]:
@@ -297,6 +343,11 @@ def is_voice_configured(configuration: dict[str, Any] | None = None) -> bool:
         active_configuration["primary_api_key"]
         or active_configuration["secondary_api_key"]
     )
+
+
+def is_video_configured(configuration: dict[str, Any] | None = None) -> bool:
+    active_configuration = configuration or get_video_runtime_configuration()
+    return bool(active_configuration["api_key"])
 
 
 def normalize_history(raw_history: Any) -> list[dict[str, str]]:
@@ -325,6 +376,10 @@ def normalize_history(raw_history: Any) -> list[dict[str, str]]:
 
 def normalize_tts_text(raw_text: Any) -> str:
     return re.sub(r"\s+", " ", str(raw_text or "")).strip()[:MAX_TTS_CHARS]
+
+
+def normalize_video_prompt(raw_prompt: Any) -> str:
+    return re.sub(r"\s+", " ", str(raw_prompt or "")).strip()[:MAX_VIDEO_PROMPT_CHARS]
 
 
 def get_persona_instruction(persona_id: str) -> str:
@@ -567,6 +622,211 @@ def request_elevenlabs_tts(
     )
 
 
+def request_video_generation_operation(
+    prompt: str,
+    configuration: dict[str, Any],
+) -> str:
+    if not is_video_configured(configuration):
+        raise AIServiceError("Veo video generation is not configured on the backend.")
+
+    payload: dict[str, Any] = {
+        "instances": [{"prompt": prompt}],
+        "parameters": {
+            "numberOfVideos": 1,
+            "resolution": configuration["resolution"],
+            "aspectRatio": configuration["aspect_ratio"],
+            "durationSeconds": configuration["duration_seconds"],
+        },
+    }
+
+    try:
+        response = requests.post(
+            (
+                f"{GEMINI_API_BASE_URL}/models/"
+                f"{configuration['model']}:predictLongRunning"
+            ),
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": configuration["api_key"],
+            },
+            json=payload,
+            timeout=configuration["request_timeout_seconds"],
+        )
+    except requests.exceptions.ConnectionError as error:
+        raise AIServiceError("Could not reach the Veo video generation API.") from error
+    except requests.exceptions.Timeout as error:
+        raise AIServiceError("Veo video generation took too long to start.") from error
+    except requests.exceptions.RequestException as error:
+        raise AIServiceError(f"Veo video generation request failed: {error}") from error
+
+    try:
+        response_data = response.json()
+    except ValueError as error:
+        raise AIServiceError("Veo returned a non-JSON response.") from error
+
+    if not response.ok:
+        api_message = (
+            response_data.get("error", {}).get("message")
+            if isinstance(response_data, dict)
+            else None
+        )
+        raise AIServiceError(
+            api_message
+            or f"Veo request failed with status {response.status_code}."
+        )
+
+    operation_name = str(response_data.get("name", "")).strip()
+    if not operation_name:
+        raise AIServiceError("Veo did not return an operation name.")
+
+    return operation_name
+
+
+def fetch_video_operation(
+    operation_name: str,
+    configuration: dict[str, Any],
+) -> dict[str, Any]:
+    if not is_video_configured(configuration):
+        raise AIServiceError("Veo video generation is not configured on the backend.")
+
+    normalized_operation_name = operation_name.strip().lstrip("/")
+    if not normalized_operation_name:
+        raise AIServiceError("Missing Veo operation name.")
+
+    try:
+        response = requests.get(
+            f"{GEMINI_API_BASE_URL}/{normalized_operation_name}",
+            headers={"x-goog-api-key": configuration["api_key"]},
+            timeout=configuration["request_timeout_seconds"],
+        )
+    except requests.exceptions.ConnectionError as error:
+        raise AIServiceError("Could not refresh Veo video generation status.") from error
+    except requests.exceptions.Timeout as error:
+        raise AIServiceError("Veo status check took too long.") from error
+    except requests.exceptions.RequestException as error:
+        raise AIServiceError(f"Veo status check failed: {error}") from error
+
+    try:
+        response_data = response.json()
+    except ValueError as error:
+        raise AIServiceError("Veo status endpoint returned a non-JSON response.") from error
+
+    if not response.ok:
+        api_message = (
+            response_data.get("error", {}).get("message")
+            if isinstance(response_data, dict)
+            else None
+        )
+        raise AIServiceError(
+            api_message
+            or f"Veo status request failed with status {response.status_code}."
+        )
+
+    return response_data
+
+
+def extract_video_operation_error(operation_data: dict[str, Any]) -> str:
+    error_data = operation_data.get("error")
+    if not isinstance(error_data, dict):
+        return ""
+
+    message = str(error_data.get("message", "")).strip()
+    if message:
+        return message
+
+    code = str(error_data.get("code", "")).strip()
+    return f"Veo reported an error{f' ({code})' if code else ''}."
+
+
+def extract_video_download_uri(operation_data: dict[str, Any]) -> str:
+    response_data = operation_data.get("response")
+    if not isinstance(response_data, dict):
+        return ""
+
+    generated_response = response_data.get("generateVideoResponse")
+    if isinstance(generated_response, dict):
+        generated_samples = generated_response.get("generatedSamples", [])
+        if isinstance(generated_samples, list) and generated_samples:
+            sample = generated_samples[0]
+            if isinstance(sample, dict):
+                video = sample.get("video")
+                if isinstance(video, dict):
+                    video_uri = str(video.get("uri", "")).strip()
+                    if video_uri:
+                        return video_uri
+
+    for key in ("generatedVideos", "generated_videos"):
+        generated_videos = response_data.get(key)
+        if not isinstance(generated_videos, list) or not generated_videos:
+            continue
+
+        first_video = generated_videos[0]
+        if not isinstance(first_video, dict):
+            continue
+
+        video = first_video.get("video")
+        if not isinstance(video, dict):
+            continue
+
+        video_uri = str(video.get("uri", "")).strip()
+        if video_uri:
+            return video_uri
+
+    return ""
+
+
+def is_allowed_video_download_uri(video_uri: str) -> bool:
+    parsed_uri = urlparse(video_uri)
+    hostname = (parsed_uri.hostname or "").lower()
+    if parsed_uri.scheme != "https" or not hostname:
+        return False
+
+    return any(
+        hostname == allowed_suffix or hostname.endswith(f".{allowed_suffix}")
+        for allowed_suffix in ALLOWED_VIDEO_DOWNLOAD_HOST_SUFFIXES
+    )
+
+
+def stream_video_file(video_uri: str, configuration: dict[str, Any]) -> Response:
+    if not is_video_configured(configuration):
+        raise AIServiceError("Veo video generation is not configured on the backend.")
+
+    if not is_allowed_video_download_uri(video_uri):
+        raise AIServiceError("The requested Veo video download URL is not allowed.")
+
+    try:
+        upstream_response = requests.get(
+            video_uri,
+            headers={"x-goog-api-key": configuration["api_key"]},
+            timeout=configuration["request_timeout_seconds"],
+            allow_redirects=True,
+            stream=True,
+        )
+        upstream_response.raise_for_status()
+    except requests.exceptions.ConnectionError as error:
+        raise AIServiceError("Could not reach the generated Veo video file.") from error
+    except requests.exceptions.Timeout as error:
+        raise AIServiceError("Downloading the generated Veo video took too long.") from error
+    except requests.exceptions.RequestException as error:
+        raise AIServiceError(f"Veo video download failed: {error}") from error
+
+    def generate():
+        try:
+            for chunk in upstream_response.iter_content(chunk_size=1024 * 512):
+                if chunk:
+                    yield chunk
+        finally:
+            upstream_response.close()
+
+    response = Response(
+        stream_with_context(generate()),
+        mimetype=upstream_response.headers.get("Content-Type", "video/mp4"),
+    )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Content-Disposition"] = 'inline; filename="max-ai-video.mp4"'
+    return response
+
+
 def build_ollama_prompt(
     user_message: str,
     persona_id: str,
@@ -651,7 +911,7 @@ def request_gemini(
 
     model_name = configuration["gemini_model"]
     endpoint = (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{GEMINI_API_BASE_URL}/models/"
         f"{model_name}:generateContent"
     )
     payload: dict[str, Any] = {
@@ -1002,6 +1262,7 @@ def health_check():
     """Simple health endpoint for quick backend checks."""
     configuration = get_runtime_configuration()
     voice_configuration = get_voice_runtime_configuration()
+    video_configuration = get_video_runtime_configuration()
 
     try:
         active_provider = resolve_provider(configuration)
@@ -1021,6 +1282,8 @@ def health_check():
             ),
             "geminiConfigured": bool(configuration["gemini_api_key"]),
             "voiceConfigured": is_voice_configured(voice_configuration),
+            "videoConfigured": is_video_configured(video_configuration),
+            "videoModel": video_configuration["model"],
         }
     )
 
@@ -1052,6 +1315,156 @@ def voice_tts():
         return jsonify({"error": str(error)}), 503
     except Exception as error:  # pragma: no cover - final safety net
         logger.exception("Unexpected voice synthesis error.")
+        return jsonify({"error": f"Unexpected server error: {error}"}), 500
+
+
+@app.route("/video/generate", methods=["POST", "OPTIONS"])
+def generate_video():
+    """Start a Veo text-to-video generation job."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    try:
+        request_data = request.get_json(silent=True) or {}
+        prompt = normalize_video_prompt(
+            request_data.get("prompt") or request_data.get("message", "")
+        )
+        video_configuration = get_video_runtime_configuration()
+
+        if not prompt:
+            return jsonify({"error": "Field 'prompt' is required."}), 400
+
+        if not is_video_configured(video_configuration):
+            return jsonify(
+                {
+                    "error": (
+                        "Veo backend is not configured. Add GEMINI_VIDEO_API_KEY or "
+                        "GEMINI_API_KEY on the backend."
+                    )
+                }
+            ), 503
+
+        operation_name = request_video_generation_operation(prompt, video_configuration)
+        return jsonify(
+            {
+                "status": "pending",
+                "operationName": operation_name,
+                "provider": "google-veo",
+                "model": video_configuration["model"],
+                "pollAfterMs": video_configuration["poll_interval_seconds"] * 1000,
+            }
+        )
+    except AIServiceError as error:
+        logger.exception("Video generation error.")
+        return jsonify({"error": str(error)}), 503
+    except Exception as error:  # pragma: no cover - final safety net
+        logger.exception("Unexpected video generation error.")
+        return jsonify({"error": f"Unexpected server error: {error}"}), 500
+
+
+@app.route("/video/status", methods=["GET", "OPTIONS"])
+def video_status():
+    """Poll a previously started Veo generation job."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    try:
+        operation_name = str(request.args.get("operation", "")).strip()
+        video_configuration = get_video_runtime_configuration()
+
+        if not operation_name:
+            return jsonify({"error": "Query param 'operation' is required."}), 400
+
+        if not is_video_configured(video_configuration):
+            return jsonify(
+                {
+                    "error": (
+                        "Veo backend is not configured. Add GEMINI_VIDEO_API_KEY or "
+                        "GEMINI_API_KEY on the backend."
+                    )
+                }
+            ), 503
+
+        operation_data = fetch_video_operation(operation_name, video_configuration)
+        operation_error = extract_video_operation_error(operation_data)
+        if operation_error:
+            return jsonify(
+                {
+                    "status": "failed",
+                    "done": True,
+                    "operationName": operation_name,
+                    "provider": "google-veo",
+                    "model": video_configuration["model"],
+                    "error": operation_error,
+                }
+            )
+
+        if not operation_data.get("done"):
+            return jsonify(
+                {
+                    "status": "pending",
+                    "done": False,
+                    "operationName": operation_name,
+                    "provider": "google-veo",
+                    "model": video_configuration["model"],
+                    "pollAfterMs": video_configuration["poll_interval_seconds"] * 1000,
+                }
+            )
+
+        video_uri = extract_video_download_uri(operation_data)
+        if not video_uri:
+            return jsonify(
+                {
+                    "status": "failed",
+                    "done": True,
+                    "operationName": operation_name,
+                    "provider": "google-veo",
+                    "model": video_configuration["model"],
+                    "error": "Veo finished the job but did not return a downloadable video.",
+                }
+            ), 502
+
+        download_path = (
+            f"{request.url_root.rstrip('/')}/video/file?uri={quote(video_uri, safe='')}"
+        )
+        return jsonify(
+            {
+                "status": "completed",
+                "done": True,
+                "operationName": operation_name,
+                "provider": "google-veo",
+                "model": video_configuration["model"],
+                "downloadUrl": download_path,
+                "mimeType": "video/mp4",
+            }
+        )
+    except AIServiceError as error:
+        logger.exception("Video status error.")
+        return jsonify({"error": str(error)}), 503
+    except Exception as error:  # pragma: no cover - final safety net
+        logger.exception("Unexpected video status error.")
+        return jsonify({"error": f"Unexpected server error: {error}"}), 500
+
+
+@app.route("/video/file", methods=["GET", "OPTIONS"])
+def video_file():
+    """Proxy a Veo-generated video file so the frontend never needs the API key."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    try:
+        video_uri = str(request.args.get("uri", "")).strip()
+        video_configuration = get_video_runtime_configuration()
+
+        if not video_uri:
+            return jsonify({"error": "Query param 'uri' is required."}), 400
+
+        return stream_video_file(video_uri, video_configuration)
+    except AIServiceError as error:
+        logger.exception("Video download error.")
+        return jsonify({"error": str(error)}), 503
+    except Exception as error:  # pragma: no cover - final safety net
+        logger.exception("Unexpected video download error.")
         return jsonify({"error": f"Unexpected server error: {error}"}), 500
 
 

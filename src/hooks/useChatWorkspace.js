@@ -11,12 +11,17 @@ import {
   upsertUserProfile,
 } from "../lib/firestore";
 import {
+  extractVideoPrompt,
   fetchChatEngineStatus,
   generateAssistantReply,
   getDefaultChatEngine,
   getUnavailableChatEngine,
+  getVideoChatEngine,
   isLiveChatConfigured,
+  isVideoGenerationPrompt,
+  pollVideoGeneration,
   predictSearchIntent,
+  startVideoGeneration,
 } from "../lib/chat-api";
 
 const DEFAULT_PERSONA_ID = "other";
@@ -333,6 +338,7 @@ export function useChatWorkspace() {
     let targetChatId = activeChatId;
     let controller = null;
     let userClientTag = "";
+    let requestedVideo = false;
 
     try {
       upsertUserProfile(user).catch(() => {});
@@ -400,14 +406,127 @@ export function useChatWorkspace() {
         removeOptimisticMessage(userClientTag);
         throw persistError;
       });
+
+      controller = new AbortController();
+      requestControllerRef.current = controller;
+
+      requestedVideo = isVideoGenerationPrompt(content);
+
+      if (requestedVideo) {
+        const videoPrompt = extractVideoPrompt(content);
+        setThinkingState({
+          chatId: targetChatId,
+          startedAt: Date.now(),
+          stage: "rendering-video",
+        });
+
+        await persistUserMessagePromise;
+
+        const videoJob = await startVideoGeneration({
+          prompt: videoPrompt,
+          signal: controller.signal,
+        });
+        let statusMessagePersisted = false;
+        const statusClientTag = createClientTag("assistant-video-status");
+        const videoStatusMessage =
+          `Video generation started.\nPrompt: ${videoPrompt}\n` +
+          "1-3 minute lag sakte hain. Ready hote hi video yahin dikhegi.";
+        const statusMedia = {
+          prompt: videoPrompt,
+          operationName: videoJob.operationName,
+          model: videoJob.model,
+        };
+
+        setEngine(getVideoChatEngine(videoJob.model, "rendering"));
+        addOptimisticMessage({
+          id: statusClientTag,
+          clientTag: statusClientTag,
+          chatId: targetChatId,
+          role: "assistant",
+          content: videoStatusMessage,
+          messageType: "video-status",
+          media: statusMedia,
+          timestamp: Date.now(),
+        });
+
+        try {
+          await appendConversationMessage({
+            conversationId: targetChatId,
+            conversationTitle: nextConversationTitle,
+            messageCount: currentMessageCount + 1,
+            role: "assistant",
+            content: videoStatusMessage,
+            clientTag: statusClientTag,
+            personaId,
+            user,
+            messageType: "video-status",
+            media: statusMedia,
+          });
+          statusMessagePersisted = true;
+        } catch {
+          removeOptimisticMessage(statusClientTag);
+          setSyncError("Video status save nahi hui. Firestore sync check karo.");
+        }
+
+        const videoResult = await pollVideoGeneration({
+          operationName: videoJob.operationName,
+          signal: controller.signal,
+        });
+
+        if (requestControllerRef.current === controller) {
+          requestControllerRef.current = null;
+        }
+
+        const readyClientTag = createClientTag("assistant-video");
+        const videoReadyMessage =
+          "Video ready hai. Neeche play karo ya download kar lo.";
+        const videoMedia = {
+          prompt: videoPrompt,
+          downloadUrl: videoResult.downloadUrl,
+          mimeType: videoResult.mimeType,
+          model: videoResult.model,
+          operationName: videoResult.operationName,
+        };
+
+        addOptimisticMessage({
+          id: readyClientTag,
+          clientTag: readyClientTag,
+          chatId: targetChatId,
+          role: "assistant",
+          content: videoReadyMessage,
+          messageType: "video",
+          media: videoMedia,
+          timestamp: Date.now(),
+        });
+        setThinkingState(null);
+        setEngine(getVideoChatEngine(videoResult.model, "ready"));
+
+        try {
+          await appendConversationMessage({
+            conversationId: targetChatId,
+            conversationTitle: nextConversationTitle,
+            messageCount: currentMessageCount + (statusMessagePersisted ? 2 : 1),
+            role: "assistant",
+            content: videoReadyMessage,
+            clientTag: readyClientTag,
+            personaId,
+            user,
+            messageType: "video",
+            media: videoMedia,
+          });
+        } catch {
+          removeOptimisticMessage(readyClientTag);
+          setSyncError("Generated video save nahi hui. Firestore sync check karo.");
+        }
+
+        return;
+      }
+
       setThinkingState({
         chatId: targetChatId,
         startedAt: Date.now(),
         stage: predictSearchIntent(content) ? "searching" : "thinking",
       });
-
-      controller = new AbortController();
-      requestControllerRef.current = controller;
 
       const assistantResponse = await generateAssistantReply({
         message: content,
@@ -476,7 +595,7 @@ export function useChatWorkspace() {
         return;
       }
 
-      if (isLiveChatConfigured()) {
+      if (isLiveChatConfigured() && !requestedVideo) {
         setEngine(getUnavailableChatEngine());
       }
 

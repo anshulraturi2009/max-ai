@@ -14,6 +14,8 @@ services:
         value: gemini-2.5-flash
       - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_VIDEO_API_KEY
+        sync: false
       - key: ELEVENLABS_API_KEY_PRIMARY
         sync: false
       - key: ELEVENLABS_API_KEY_SECONDARY
@@ -28,5 +30,13 @@ services:
         value: eleven_multilingual_v2
       - key: ELEVENLABS_OUTPUT_FORMAT
         value: mp3_44100_128
+      - key: VEO_MODEL
+        value: veo-3.1-lite-generate-preview
+      - key: VEO_RESOLUTION
+        value: 720p
+      - key: VEO_ASPECT_RATIO
+        value: 16:9
+      - key: VEO_DURATION_SECONDS
+        value: "8"
       - key: ALLOWED_ORIGINS
         value: https://max-ai-a030a.web.app,https://max-ai-a030a.firebaseapp.com,https://anshulraturi.me,https://www.anshulraturi.me

@@ -4,6 +4,7 @@ This backend powers MAX AI chat with a secure server-side provider layer.
 
 It now supports:
 - Gemini via `GEMINI_API_KEY`
+- Veo 3.1 Lite video generation via `GEMINI_VIDEO_API_KEY` (or fallback to `GEMINI_API_KEY`)
 - Ollama fallback when Gemini is not configured
 - ElevenLabs TTS via backend-only API keys
 - persona-aware replies
@@ -63,6 +64,16 @@ ELEVENLABS_MODEL_ID=eleven_multilingual_v2
 ELEVENLABS_OUTPUT_FORMAT=mp3_44100_128
 ```
 
+Example Veo text-to-video config:
+
+```env
+GEMINI_VIDEO_API_KEY=your_key_here
+VEO_MODEL=veo-3.1-lite-generate-preview
+VEO_RESOLUTION=720p
+VEO_ASPECT_RATIO=16:9
+VEO_DURATION_SECONDS=8
+```
+
 4. If you use Ollama, make sure it is running:
 
 ```bash
@@ -106,6 +117,9 @@ Use `.env.development.local` for local Vite development so production hosting do
 - `GET /health`
 - `POST /chat`
 - `POST /voice/tts`
+- `POST /video/generate`
+- `GET /video/status?operation=...`
+- `GET /video/file?uri=...`
 
 ## Request body
 

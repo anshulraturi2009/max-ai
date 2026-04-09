@@ -404,6 +404,9 @@ export default function InputBar({
             <span className="hidden rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs text-slate-400 sm:inline-flex">
               Shift + Enter for new line
             </span>
+            <span className="hidden rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-100 lg:inline-flex">
+              Type: ek video banao jisme...
+            </span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -566,7 +569,7 @@ export default function InputBar({
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask MAX AI anything..."
+            placeholder="Ask MAX AI anything... ya likho: ek video banao jisme..."
             className="max-h-[180px] min-h-[52px] flex-1 bg-transparent px-2 py-3 text-sm leading-7 text-white outline-none placeholder:text-slate-500 sm:min-h-[64px] sm:px-3 sm:py-4"
           />
 

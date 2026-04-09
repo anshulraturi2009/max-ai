@@ -6,9 +6,15 @@ const rawChatApiUrl =
 const chatApiUrl = rawChatApiUrl.trim();
 const chatApiBaseUrl = chatApiUrl.replace(/\/chat\/?$/u, "");
 const voiceApiUrl = chatApiUrl ? `${chatApiBaseUrl}/voice/tts` : "";
+const videoStartApiUrl = chatApiUrl ? `${chatApiBaseUrl}/video/generate` : "";
+const videoStatusApiUrl = chatApiUrl ? `${chatApiBaseUrl}/video/status` : "";
 const BACKEND_TIMEOUT_MS = 70000;
 const HEALTH_TIMEOUT_MS = 5000;
 const VOICE_TIMEOUT_MS = 45000;
+const VIDEO_START_TIMEOUT_MS = 45000;
+const VIDEO_POLL_TIMEOUT_MS = 8 * 60 * 1000;
+const VIDEO_FALLBACK_POLL_DELAY_MS = 10000;
+const DEFAULT_VIDEO_MODEL = "veo-3.1-lite-generate-preview";
 
 const mockEngine = {
   provider: "mock",
@@ -22,6 +28,16 @@ const searchHintPatterns = [
   /\b(latest|news|today|current|recent|update)\b/iu,
   /\b(search|look up|find|check online|web)\b/iu,
   /\b(who is|what is|when is|where is)\b/iu,
+];
+
+const videoCreateVerbPattern =
+  /\b(create|generate|make|banao|banado|bana do|taiyar karo)\b/iu;
+const videoNounPattern = /\b(video|clip|reel|animation|cinematic)\b/iu;
+const explicitTextToVideoPattern = /\btext\s*to\s*video\b/iu;
+const leadingVideoPromptPatterns = [
+  /^(please\s+)?(text\s*to\s*video)\s*[:,-]?\s*/iu,
+  /^(please\s+)?(create|generate|make)\s+(me\s+)?(an?\s+)?(short\s+)?(cinematic\s+)?(video|clip|reel)\s*(of|where|with)?\s*/iu,
+  /^(please\s+)?(ek\s+)?(short\s+)?(cinematic\s+)?(video|clip|reel)\s+(banao|banado|bana do)\s*(jisme|jahan|where|with|of)?\s*/iu,
 ];
 
 const selfIdentityPatterns = [
@@ -53,6 +69,35 @@ const anshulPatterns = [
 
 export function predictSearchIntent(message = "") {
   return searchHintPatterns.some((pattern) => pattern.test(message));
+}
+
+export function isVideoGenerationPrompt(message = "") {
+  const normalizedMessage = message.trim();
+  if (!normalizedMessage) {
+    return false;
+  }
+
+  return (
+    explicitTextToVideoPattern.test(normalizedMessage) ||
+    (videoNounPattern.test(normalizedMessage) &&
+      videoCreateVerbPattern.test(normalizedMessage))
+  );
+}
+
+export function extractVideoPrompt(message = "") {
+  const normalizedMessage = message.trim().replace(/\s+/gu, " ");
+  if (!normalizedMessage) {
+    return "";
+  }
+
+  for (const pattern of leadingVideoPromptPatterns) {
+    const strippedMessage = normalizedMessage.replace(pattern, "").trim();
+    if (strippedMessage && strippedMessage !== normalizedMessage) {
+      return strippedMessage;
+    }
+  }
+
+  return normalizedMessage;
 }
 
 function matchesPattern(message, patterns) {
@@ -113,7 +158,20 @@ function buildEngineSnapshot(
       detail:
         activityType === "search"
           ? "Ollama + web search context active"
-          : "Local Ollama backend active",
+        : "Local Ollama backend active",
+    };
+  }
+
+  if (provider === "google-veo") {
+    return {
+      provider,
+      model,
+      status,
+      label: model || "Veo video",
+      detail:
+        status === "rendering"
+          ? "Google Veo text-to-video generation in progress"
+          : "Google Veo video generation active",
     };
   }
 
@@ -159,6 +217,43 @@ function buildLiveBackendError(error) {
   );
 }
 
+function buildVideoBackendError(error) {
+  if (error?.name === "AbortError") {
+    return new Error(
+      "Video generation cancel ho gayi ya timeout ho gaya. Thoda wait karke phir try karo.",
+    );
+  }
+
+  if (typeof error?.message === "string" && error.message.trim()) {
+    return new Error(error.message.trim());
+  }
+
+  return new Error(
+    "Video generation abhi complete nahi ho payi. Thodi der baad phir try karo.",
+  );
+}
+
+function delayWithAbort(durationMs, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      signal?.removeEventListener?.("abort", handleAbort);
+      resolve();
+    }, durationMs);
+
+    function handleAbort() {
+      window.clearTimeout(timeoutId);
+      reject(new DOMException("Aborted", "AbortError"));
+    }
+
+    signal?.addEventListener?.("abort", handleAbort, { once: true });
+  });
+}
+
 function sanitizeHistory(history = []) {
   return history
     .map((message) => ({
@@ -190,6 +285,13 @@ export function getDefaultChatEngine() {
 
 export function getUnavailableChatEngine() {
   return buildEngineSnapshot("backend", "", "offline");
+}
+
+export function getVideoChatEngine(
+  model = DEFAULT_VIDEO_MODEL,
+  status = "rendering",
+) {
+  return buildEngineSnapshot("google-veo", model, status, "video");
 }
 
 export function isLiveChatConfigured() {
@@ -393,6 +495,151 @@ export async function generateAssistantSpeech({ text, signal }) {
       audioBlob,
       keyLabel: response.headers.get("X-MAX-AI-Voice-Key") || "",
     };
+  } finally {
+    window.clearTimeout(abortTimeout);
+    signal?.removeEventListener?.("abort", handleAbort);
+  }
+}
+
+export async function startVideoGeneration({ prompt, signal }) {
+  if (!videoStartApiUrl) {
+    throw new Error("Video backend configured nahi hai.");
+  }
+
+  const normalizedPrompt = extractVideoPrompt(prompt);
+  if (!normalizedPrompt) {
+    throw new Error("Video prompt missing hai.");
+  }
+
+  const controller = new AbortController();
+  const abortTimeout = window.setTimeout(() => {
+    controller.abort();
+  }, VIDEO_START_TIMEOUT_MS);
+  const handleAbort = () => controller.abort();
+
+  if (signal) {
+    if (signal.aborted) {
+      controller.abort();
+    } else {
+      signal.addEventListener("abort", handleAbort, { once: true });
+    }
+  }
+
+  try {
+    const response = await fetch(videoStartApiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prompt: normalizedPrompt }),
+      signal: controller.signal,
+    });
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(
+        data?.error ||
+          `Video backend request failed with status ${response.status}.`,
+      );
+    }
+
+    const operationName = String(data?.operationName ?? "").trim();
+    if (!operationName) {
+      throw new Error("Video backend ne operation id return nahi ki.");
+    }
+
+    return {
+      operationName,
+      model: String(data?.model ?? DEFAULT_VIDEO_MODEL).trim() || DEFAULT_VIDEO_MODEL,
+      provider: String(data?.provider ?? "google-veo").trim() || "google-veo",
+      pollAfterMs:
+        typeof data?.pollAfterMs === "number" && data.pollAfterMs > 0
+          ? data.pollAfterMs
+          : VIDEO_FALLBACK_POLL_DELAY_MS,
+    };
+  } catch (error) {
+    if (signal?.aborted) {
+      throw error;
+    }
+
+    throw buildVideoBackendError(error);
+  } finally {
+    window.clearTimeout(abortTimeout);
+    signal?.removeEventListener?.("abort", handleAbort);
+  }
+}
+
+export async function pollVideoGeneration({ operationName, signal }) {
+  if (!videoStatusApiUrl) {
+    throw new Error("Video backend configured nahi hai.");
+  }
+
+  const normalizedOperationName = String(operationName ?? "").trim();
+  if (!normalizedOperationName) {
+    throw new Error("Video operation id missing hai.");
+  }
+
+  const controller = new AbortController();
+  const abortTimeout = window.setTimeout(() => {
+    controller.abort();
+  }, VIDEO_POLL_TIMEOUT_MS);
+  const handleAbort = () => controller.abort();
+
+  if (signal) {
+    if (signal.aborted) {
+      controller.abort();
+    } else {
+      signal.addEventListener("abort", handleAbort, { once: true });
+    }
+  }
+
+  try {
+    while (true) {
+      const statusUrl = new URL(videoStatusApiUrl, window.location.origin);
+      statusUrl.searchParams.set("operation", normalizedOperationName);
+
+      const response = await fetch(statusUrl.toString(), {
+        method: "GET",
+        signal: controller.signal,
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            `Video status request failed with status ${response.status}.`,
+        );
+      }
+
+      if (data?.status === "failed") {
+        throw new Error(
+          data?.error || "Video generation fail ho gayi. Prompt ko clearer try karo.",
+        );
+      }
+
+      if (data?.status === "completed" && data?.downloadUrl) {
+        return {
+          downloadUrl: String(data.downloadUrl).trim(),
+          mimeType: String(data?.mimeType ?? "video/mp4").trim() || "video/mp4",
+          model: String(data?.model ?? DEFAULT_VIDEO_MODEL).trim() || DEFAULT_VIDEO_MODEL,
+          provider: String(data?.provider ?? "google-veo").trim() || "google-veo",
+          operationName: normalizedOperationName,
+        };
+      }
+
+      await delayWithAbort(
+        typeof data?.pollAfterMs === "number" && data.pollAfterMs > 0
+          ? data.pollAfterMs
+          : VIDEO_FALLBACK_POLL_DELAY_MS,
+        controller.signal,
+      );
+    }
+  } catch (error) {
+    if (signal?.aborted) {
+      throw error;
+    }
+
+    throw buildVideoBackendError(error);
   } finally {
     window.clearTimeout(abortTimeout);
     signal?.removeEventListener?.("abort", handleAbort);

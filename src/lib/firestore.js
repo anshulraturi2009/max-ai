@@ -240,6 +240,8 @@ export async function appendConversationMessage({
   clientTag = "",
   personaId,
   user,
+  messageType = "text",
+  media = null,
 }) {
   if (!db || !conversationId || !content.trim()) {
     return;
@@ -257,6 +259,8 @@ export async function appendConversationMessage({
     content: content.trim(),
     clientTag,
     personaId,
+    messageType,
+    ...(media ? { media } : {}),
     authorId: role === "user" ? user?.uid ?? "user" : "max-ai",
     authorName:
       role === "user"
