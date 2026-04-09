@@ -5,6 +5,7 @@ import InputBar from "../components/chat/InputBar";
 import MessageBubble from "../components/chat/MessageBubble";
 import Sidebar from "../components/chat/Sidebar";
 import TypingIndicator from "../components/chat/TypingIndicator";
+import VideoGenerationIndicator from "../components/chat/VideoGenerationIndicator";
 import { useAuth } from "../context/AuthContext";
 import { useChatWorkspace } from "../hooks/useChatWorkspace";
 import { useVoiceCall } from "../hooks/useVoiceCall";
@@ -134,7 +135,15 @@ export default function ChatPage() {
                     {activeChat.messages.map((message) => (
                       <MessageBubble key={message.id} message={message} />
                     ))}
-                    {isThinking ? <TypingIndicator key="typing-indicator" /> : null}
+                    {isThinking && thinkingStage === "rendering-video" ? (
+                      <VideoGenerationIndicator
+                        key="video-generation-indicator"
+                        startedAt={thinkingState?.startedAt}
+                      />
+                    ) : null}
+                    {isThinking && thinkingStage !== "rendering-video" ? (
+                      <TypingIndicator key="typing-indicator" />
+                    ) : null}
                   </AnimatePresence>
                 ) : (
                   <div className="panel flex min-h-[320px] flex-col items-center justify-center px-6 text-center">

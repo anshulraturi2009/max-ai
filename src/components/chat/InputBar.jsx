@@ -8,7 +8,6 @@ import {
   Phone,
   PhoneOff,
   SendHorizonal,
-  Sparkles,
   X,
 } from "lucide-react";
 
@@ -395,20 +394,7 @@ export default function InputBar({
   return (
     <div className="safe-bottom z-20 shrink-0 border-t border-white/10 bg-gradient-to-t from-slate-950 via-slate-950/95 to-slate-950/90 px-3 pt-3 sm:px-6 sm:pt-4">
       <div className="input-shell mx-auto max-w-none p-2.5 sm:p-3">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 sm:mb-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="status-chip">
-              <Sparkles className="h-3.5 w-3.5" />
-              MAX AI live
-            </span>
-            <span className="hidden rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs text-slate-400 sm:inline-flex">
-              Shift + Enter for new line
-            </span>
-            <span className="hidden rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-100 lg:inline-flex">
-              Type: ek video banao jisme...
-            </span>
-          </div>
-
+        <div className="mb-2 flex flex-wrap items-center justify-end gap-2 sm:mb-3">
           <div className="flex items-center gap-2">
             <div className="relative" ref={menuRef}>
               <button
@@ -569,7 +555,7 @@ export default function InputBar({
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask MAX AI anything... ya likho: ek video banao jisme..."
+            placeholder="Ask MAX AI anything..."
             className="max-h-[180px] min-h-[52px] flex-1 bg-transparent px-2 py-3 text-sm leading-7 text-white outline-none placeholder:text-slate-500 sm:min-h-[64px] sm:px-3 sm:py-4"
           />
 

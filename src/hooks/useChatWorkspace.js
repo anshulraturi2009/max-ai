@@ -426,47 +426,8 @@ export function useChatWorkspace() {
           prompt: videoPrompt,
           signal: controller.signal,
         });
-        let statusMessagePersisted = false;
-        const statusClientTag = createClientTag("assistant-video-status");
-        const videoStatusMessage =
-          `Video generation started.\nPrompt: ${videoPrompt}\n` +
-          "1-3 minute lag sakte hain. Ready hote hi video yahin dikhegi.";
-        const statusMedia = {
-          prompt: videoPrompt,
-          operationName: videoJob.operationName,
-          model: videoJob.model,
-        };
 
         setEngine(getVideoChatEngine(videoJob.model, "rendering"));
-        addOptimisticMessage({
-          id: statusClientTag,
-          clientTag: statusClientTag,
-          chatId: targetChatId,
-          role: "assistant",
-          content: videoStatusMessage,
-          messageType: "video-status",
-          media: statusMedia,
-          timestamp: Date.now(),
-        });
-
-        try {
-          await appendConversationMessage({
-            conversationId: targetChatId,
-            conversationTitle: nextConversationTitle,
-            messageCount: currentMessageCount + 1,
-            role: "assistant",
-            content: videoStatusMessage,
-            clientTag: statusClientTag,
-            personaId,
-            user,
-            messageType: "video-status",
-            media: statusMedia,
-          });
-          statusMessagePersisted = true;
-        } catch {
-          removeOptimisticMessage(statusClientTag);
-          setSyncError("Video status save nahi hui. Firestore sync check karo.");
-        }
 
         const videoResult = await pollVideoGeneration({
           operationName: videoJob.operationName,
@@ -505,7 +466,7 @@ export function useChatWorkspace() {
           await appendConversationMessage({
             conversationId: targetChatId,
             conversationTitle: nextConversationTitle,
-            messageCount: currentMessageCount + (statusMessagePersisted ? 2 : 1),
+            messageCount: currentMessageCount + 1,
             role: "assistant",
             content: videoReadyMessage,
             clientTag: readyClientTag,
