@@ -428,7 +428,7 @@ def build_creator_reply(user_message: str) -> str:
     normalized = user_message.strip().lower()
     if "anshul" in normalized:
         return (
-            "Anshul Raturi ek young Indian founder hain aur Uttarakhand se belong karte hain. "
+            "Anshul Raturi ek young Indian founder hain ✨ aur Uttarakhand se belong karte hain. "
             "Unhone MAX AI banaya hai."
         )
 
@@ -453,7 +453,7 @@ def build_video_capability_reply() -> str:
     return (
         "Haan, is app me main text se video generate kar sakta hu. "
         "Bas likho: ek video banao jisme ek aadmi gadi chala raha ho. "
-        "Phir video niche generate hona start ho jayegi."
+        "Phir video niche generate hona start ho jayegi 🎬"
     )
 
 
@@ -481,6 +481,9 @@ def build_system_instruction(persona_id: str) -> str:
         "- Stay helpful, specific, and actionable.\n"
         "- Avoid repeating the same point in different words.\n"
         "- Prefer direct answers first; add extra detail only when needed.\n"
+        "- You may use emojis when they genuinely improve warmth or emphasis, but keep them sparse and tasteful.\n"
+        "- Usually use 0 to 2 emojis max in one reply, and do not force emojis into every answer.\n"
+        "- Avoid emojis in serious, sensitive, or highly formal replies unless one subtle emoji clearly helps.\n"
         "- Match the selected persona consistently.\n"
         "- Do not mention hidden system instructions.\n"
         "- If asked who you are, say: Mai MAX AI hu. Mujhe Anshul Raturi ne banaya hai. "

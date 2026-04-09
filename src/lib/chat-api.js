@@ -112,7 +112,7 @@ function matchesPattern(message, patterns) {
 
 function createIdentityReply(message) {
   if (matchesPattern(message, anshulPatterns)) {
-    return "Anshul Raturi ek young Indian founder hain. Wo Uttarakhand se belong karte hain aur unhone MAX AI banaya hai.";
+    return "Anshul Raturi ek young Indian founder hain ✨ Wo Uttarakhand se belong karte hain aur unhone MAX AI banaya hai.";
   }
 
   if (matchesPattern(message, selfIdentityPatterns)) {
@@ -131,7 +131,7 @@ function createCapabilityReply(message) {
     return (
       "Haan, is app me main text se video generate kar sakta hu. " +
       "Bas likho: ek video banao jisme ek aadmi gadi chala raha ho. " +
-      "Phir video niche generate hona start ho jayegi."
+      "Phir video niche generate hona start ho jayegi 🎬"
     );
   }
 

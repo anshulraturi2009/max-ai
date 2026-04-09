@@ -230,6 +230,16 @@ const personaStyles = {
   },
 };
 
+const personaEmojiMap = {
+  bhai: ["🔥", "⚡", "😎"],
+  friend: ["🙂", "✨", "🙌"],
+  supportive: ["💙", "🌱", "🤍"],
+  formal: [],
+  funny: ["😄", "😂", "🎯"],
+  mentor: ["🚀", "💡", "📈"],
+  other: ["✨", "💡", "🤝"],
+};
+
 function hashString(input) {
   return Array.from(input).reduce(
     (accumulator, character, index) =>
@@ -240,6 +250,23 @@ function hashString(input) {
 
 function pickVariant(items, seed, salt = 0) {
   return items[(seed + salt) % items.length];
+}
+
+function getOptionalEmoji(personaId, seed, intentId) {
+  if (personaId === "formal") {
+    return "";
+  }
+
+  if (intentId === "life" && personaId !== "supportive") {
+    return "";
+  }
+
+  if (seed % 3 !== 0) {
+    return "";
+  }
+
+  const emojiPool = personaEmojiMap[personaId] ?? personaEmojiMap.other;
+  return emojiPool.length ? pickVariant(emojiPool, seed, 5) : "";
 }
 
 function detectIntent(message) {
@@ -304,9 +331,11 @@ export function createMockReply({ message, personaId = "other", history = [] }) 
   const bridge = pickVariant(style.bridges, seed, 2);
   const closer = pickVariant(style.closers, seed, 3);
   const actionBlock = buildActionList(intent.actions, persona.id);
+  const emoji = getOptionalEmoji(persona.id, seed, intent.id);
+  const openerLine = emoji ? `${opener} ${emoji}` : opener;
 
   if (persona.id === "bhai") {
-    return `${opener}
+    return `${openerLine}
 
 ${bridge} ${intent.insight}
 
@@ -317,7 +346,7 @@ ${closer}`;
   }
 
   if (persona.id === "friend") {
-    return `${opener}
+    return `${openerLine}
 
 ${bridge} ${intent.insight}
 
@@ -328,7 +357,7 @@ ${closer}`;
   }
 
   if (persona.id === "supportive") {
-    return `${opener}
+    return `${openerLine}
 
 ${bridge} ${intent.insight}
 
@@ -339,7 +368,7 @@ ${closer}`;
   }
 
   if (persona.id === "formal") {
-    return `${opener}
+    return `${openerLine}
 
 ${bridge} ${intent.insight}
 
@@ -350,7 +379,7 @@ ${closer}`;
   }
 
   if (persona.id === "funny") {
-    return `${opener}
+    return `${openerLine}
 
 ${bridge} ${intent.insight}
 
@@ -361,7 +390,7 @@ ${closer}`;
   }
 
   if (persona.id === "mentor") {
-    return `${opener}
+    return `${openerLine}
 
 ${bridge} ${intent.insight}
 
@@ -371,7 +400,7 @@ ${actionBlock}
 ${closer}`;
   }
 
-  return `${opener}
+  return `${openerLine}
 
 ${bridge} ${intent.insight}
 
