@@ -17,6 +17,16 @@
     min-height: 100%;
   }
 
+  html.app-shell-locked,
+  html.app-shell-locked body,
+  html.app-shell-locked #root,
+  body.app-shell-locked,
+  body.app-shell-locked #root {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior-y: none;
+  }
+
   body {
     @apply min-h-screen font-sans text-slate-100 antialiased;
     background:
@@ -64,6 +74,10 @@
 
   textarea {
     resize: none;
+  }
+
+  html.app-shell-locked body {
+    touch-action: pan-x pan-y;
   }
 }
 

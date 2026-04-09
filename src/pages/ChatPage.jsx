@@ -70,6 +70,20 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
+    if (typeof document === "undefined") {
+      return undefined;
+    }
+
+    document.documentElement.classList.add("app-shell-locked");
+    document.body.classList.add("app-shell-locked");
+
+    return () => {
+      document.documentElement.classList.remove("app-shell-locked");
+      document.body.classList.remove("app-shell-locked");
+    };
+  }, []);
+
+  useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) {
       return;
@@ -95,7 +109,7 @@ export default function ChatPage() {
 
   return (
     <div
-      className={`relative h-[100dvh] overflow-hidden ${
+      className={`relative h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none ${
         isLight ? "bg-[#eef4ff] text-slate-900" : "bg-[#08111f] text-slate-100"
       }`}
     >
@@ -167,7 +181,7 @@ export default function ChatPage() {
           onSignOut={handleSignOut}
         />
 
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-none">
           <ChatHeader
             engine={engine}
             isThinking={isThinking}
@@ -227,7 +241,7 @@ export default function ChatPage() {
           <div className="min-h-0 flex-1 overflow-hidden">
             <div
               ref={scrollContainerRef}
-              className="h-full overflow-y-auto px-4 py-5 sm:px-6"
+              className="h-full min-h-0 overflow-y-auto overscroll-y-contain px-4 py-5 [scrollbar-gutter:stable] sm:px-6"
             >
               <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 pb-8">
                 {syncError ? (
@@ -287,7 +301,7 @@ export default function ChatPage() {
             </div>
           </div>
 
-          <div className="mx-auto w-full max-w-5xl">
+          <div className="mx-auto w-full max-w-5xl shrink-0">
             <InputBar
               draft={draft}
               setDraft={setDraft}
