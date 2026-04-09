@@ -18,6 +18,7 @@ SYSTEM_PROMPT_PATH = BASE_DIR / "prompts" / "systemPrompt.txt"
 OLLAMA_URL = "http://localhost:11434/api/generate"
 DEFAULT_OLLAMA_MODEL = "llama3.2:1b"
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
 DEFAULT_VEO_MODEL = "veo-3.1-lite-generate-preview"
 DEFAULT_PROVIDER = "auto"
 REQUEST_TIMEOUT_SECONDS = 120
@@ -35,6 +36,7 @@ DEFAULT_VIDEO_DURATION_SECONDS = "8"
 DEFAULT_VIDEO_POLL_INTERVAL_SECONDS = 10
 MAX_VIDEO_PROMPT_CHARS = 2000
 GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+GROQ_API_BASE_URL = "https://api.groq.com/openai/v1"
 ALLOWED_VIDEO_DOWNLOAD_HOST_SUFFIXES = (
     "googleapis.com",
     "googleusercontent.com",
@@ -264,7 +266,7 @@ def load_system_prompt() -> str:
 
 def get_runtime_configuration() -> dict[str, Any]:
     provider = os.getenv("AI_PROVIDER", DEFAULT_PROVIDER).strip().lower() or DEFAULT_PROVIDER
-    if provider not in {"auto", "gemini", "ollama"}:
+    if provider not in {"auto", "gemini", "groq", "ollama"}:
         provider = DEFAULT_PROVIDER
 
     return {
@@ -272,6 +274,9 @@ def get_runtime_configuration() -> dict[str, Any]:
         "gemini_api_key": os.getenv("GEMINI_API_KEY", "").strip(),
         "gemini_model": os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL).strip()
         or DEFAULT_GEMINI_MODEL,
+        "groq_api_key": os.getenv("GROQ_API_KEY", "").strip(),
+        "groq_model": os.getenv("GROQ_MODEL", DEFAULT_GROQ_MODEL).strip()
+        or DEFAULT_GROQ_MODEL,
         "ollama_model": os.getenv("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL).strip()
         or DEFAULT_OLLAMA_MODEL,
         "timeout_seconds": int(
@@ -345,10 +350,23 @@ def resolve_provider(configuration: dict[str, Any]) -> str:
             )
         return "gemini"
 
+    if configuration["provider"] == "groq":
+        if not configuration["groq_api_key"]:
+            raise AIServiceError(
+                "AI_PROVIDER is set to groq but GROQ_API_KEY is missing."
+            )
+        return "groq"
+
     if configuration["provider"] == "ollama":
         return "ollama"
 
-    return "gemini" if configuration["gemini_api_key"] else "ollama"
+    if configuration["gemini_api_key"]:
+        return "gemini"
+
+    if configuration["groq_api_key"]:
+        return "groq"
+
+    return "ollama"
 
 
 def is_voice_configured(configuration: dict[str, Any] | None = None) -> bool:
@@ -900,6 +918,37 @@ def build_gemini_contents(
     return contents
 
 
+def build_groq_messages(
+    user_message: str,
+    persona_id: str,
+    history: list[dict[str, str]],
+    search_context: str = "",
+) -> list[dict[str, str]]:
+    messages: list[dict[str, str]] = [
+        {
+            "role": "system",
+            "content": build_system_instruction(persona_id),
+        }
+    ]
+
+    for item in history:
+        messages.append(
+            {
+                "role": "assistant" if item["role"] == "model" else "user",
+                "content": item["content"],
+            }
+        )
+
+    messages.append(
+        {
+            "role": "user",
+            "content": build_augmented_user_message(user_message, search_context),
+        }
+    )
+
+    return messages
+
+
 def extract_gemini_reply(response_data: dict[str, Any]) -> str:
     candidates = response_data.get("candidates")
     if not isinstance(candidates, list) or not candidates:
@@ -920,6 +969,31 @@ def extract_gemini_reply(response_data: dict[str, Any]) -> str:
     reply = "\n".join(reply_parts).strip()
     if not reply:
         raise AIServiceError("Gemini returned an empty response.")
+
+    return reply
+
+
+def extract_groq_reply(response_data: dict[str, Any]) -> str:
+    choices = response_data.get("choices")
+    if not isinstance(choices, list) or not choices:
+        raise AIServiceError("Groq returned no response choices.")
+
+    message = choices[0].get("message", {})
+    content = message.get("content")
+
+    if isinstance(content, str):
+        reply = content.strip()
+    elif isinstance(content, list):
+        reply = "\n".join(
+            str(part.get("text", "")).strip()
+            for part in content
+            if isinstance(part, dict) and str(part.get("text", "")).strip()
+        ).strip()
+    else:
+        reply = ""
+
+    if not reply:
+        raise AIServiceError("Groq returned an empty response.")
 
     return reply
 
@@ -981,6 +1055,64 @@ def request_gemini(
         )
 
     return extract_gemini_reply(response_data)
+
+
+def request_groq(
+    user_message: str,
+    persona_id: str,
+    history: list[dict[str, str]],
+    configuration: dict[str, Any],
+    search_context: str = "",
+) -> str:
+    api_key = configuration["groq_api_key"]
+    if not api_key:
+        raise AIServiceError("GROQ_API_KEY is missing.")
+
+    payload: dict[str, Any] = {
+        "model": configuration["groq_model"],
+        "messages": build_groq_messages(
+            user_message,
+            persona_id,
+            history,
+            search_context,
+        ),
+        "temperature": 0.7,
+    }
+
+    try:
+        response = requests.post(
+            f"{GROQ_API_BASE_URL}/chat/completions",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+            },
+            json=payload,
+            timeout=configuration["timeout_seconds"],
+        )
+    except requests.exceptions.ConnectionError as error:
+        raise AIServiceError("Could not reach Groq API.") from error
+    except requests.exceptions.Timeout as error:
+        raise AIServiceError("Groq API took too long to respond.") from error
+    except requests.exceptions.RequestException as error:
+        raise AIServiceError(f"Groq request failed: {error}") from error
+
+    try:
+        response_data = response.json()
+    except ValueError as error:
+        raise AIServiceError("Groq returned a non-JSON response.") from error
+
+    if not response.ok:
+        api_message = (
+            response_data.get("error", {}).get("message")
+            if isinstance(response_data, dict)
+            else None
+        )
+        raise AIServiceError(
+            api_message
+            or f"Groq request failed with status {response.status_code}."
+        )
+
+    return extract_groq_reply(response_data)
 
 
 def request_ollama(
@@ -1183,6 +1315,15 @@ def request_provider_reply(
             search_context,
         )
 
+    if provider == "groq":
+        return request_groq(
+            user_message,
+            persona_id,
+            history,
+            configuration,
+            search_context,
+        )
+
     return request_ollama(
         user_message,
         persona_id,
@@ -1205,31 +1346,68 @@ def request_ai_reply(
     search_results = search_web(user_message) if proactive_search else []
     if search_results:
         logger.info("Using web search context with %s results.", len(search_results))
+        search_context = build_search_context(search_results)
+        try:
+            reply = request_provider_reply(
+                user_message,
+                persona_id,
+                history,
+                configuration,
+                provider,
+                search_context,
+            )
+        except AIServiceError as error:
+            if provider != "gemini" or not configuration["groq_api_key"]:
+                raise
+
+            logger.warning(
+                "Gemini search request failed. Falling back to Groq: %s",
+                error,
+            )
+            provider = "groq"
+            reply = request_provider_reply(
+                user_message,
+                persona_id,
+                history,
+                configuration,
+                provider,
+                search_context,
+            )
+        model = (
+            configuration["gemini_model"]
+            if provider == "gemini"
+            else configuration["groq_model"]
+            if provider == "groq"
+            else configuration["ollama_model"]
+        )
+        return reply, provider, model, "search"
+
+    try:
         reply = request_provider_reply(
             user_message,
             persona_id,
             history,
             configuration,
             provider,
-            build_search_context(search_results),
         )
-        model = (
-            configuration["gemini_model"]
-            if provider == "gemini"
-            else configuration["ollama_model"]
-        )
-        return reply, provider, model, "search"
+    except AIServiceError as error:
+        if provider != "gemini" or not configuration["groq_api_key"]:
+            raise
 
-    reply = request_provider_reply(
-        user_message,
-        persona_id,
-        history,
-        configuration,
-        provider,
-    )
+        logger.warning("Gemini request failed. Falling back to Groq: %s", error)
+        provider = "groq"
+        reply = request_provider_reply(
+            user_message,
+            persona_id,
+            history,
+            configuration,
+            provider,
+        )
     model = (
         configuration["gemini_model"]
         if provider == "gemini"
+        else configuration["groq_model"]
+        if provider == "groq"
         else configuration["ollama_model"]
     )
 
@@ -1304,9 +1482,12 @@ def health_check():
             "model": (
                 configuration["gemini_model"]
                 if active_provider == "gemini"
+                else configuration["groq_model"]
+                if active_provider == "groq"
                 else configuration["ollama_model"]
             ),
             "geminiConfigured": bool(configuration["gemini_api_key"]),
+            "groqConfigured": bool(configuration["groq_api_key"]),
             "voiceConfigured": is_voice_configured(voice_configuration),
             "videoConfigured": is_video_configured(video_configuration),
             "videoModel": video_configuration["model"],

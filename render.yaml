@@ -14,6 +14,8 @@ services:
         value: gemini-2.5-flash
       - key: GEMINI_API_KEY
         sync: false
+      - key: GROQ_API_KEY
+        sync: false
       - key: GEMINI_VIDEO_API_KEY
         sync: false
       - key: ELEVENLABS_API_KEY_PRIMARY
@@ -30,6 +32,8 @@ services:
         value: eleven_multilingual_v2
       - key: ELEVENLABS_OUTPUT_FORMAT
         value: mp3_44100_128
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
       - key: VEO_MODEL
         value: veo-3.1-lite-generate-preview
       - key: VEO_RESOLUTION

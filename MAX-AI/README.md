@@ -4,6 +4,7 @@ This backend powers MAX AI chat with a secure server-side provider layer.
 
 It now supports:
 - Gemini via `GEMINI_API_KEY`
+- Groq chat fallback via `GROQ_API_KEY`
 - Veo 3.1 Lite video generation via `GEMINI_VIDEO_API_KEY` (or fallback to `GEMINI_API_KEY`)
 - Ollama fallback when Gemini is not configured
 - ElevenLabs TTS via backend-only API keys
@@ -46,6 +47,13 @@ Example Gemini config:
 AI_PROVIDER=gemini
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_API_KEY=your_key_here
+```
+
+Example Groq config:
+
+```env
+GROQ_API_KEY=your_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
 Example Ollama config:

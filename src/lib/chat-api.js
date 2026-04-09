@@ -180,6 +180,16 @@ function buildEngineSnapshot(
     };
   }
 
+  if (provider === "groq") {
+    return {
+      provider,
+      model,
+      status,
+      label: model || "Groq",
+      detail: "Fast Groq chat backend active",
+    };
+  }
+
   if (provider === "google-veo") {
     return {
       provider,
