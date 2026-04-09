@@ -318,7 +318,7 @@ def get_video_runtime_configuration() -> dict[str, Any]:
             os.getenv("VEO_ASPECT_RATIO", DEFAULT_VIDEO_ASPECT_RATIO).strip()
             or DEFAULT_VIDEO_ASPECT_RATIO
         ),
-        "duration_seconds": (
+        "duration_seconds": int(
             os.getenv("VEO_DURATION_SECONDS", DEFAULT_VIDEO_DURATION_SECONDS).strip()
             or DEFAULT_VIDEO_DURATION_SECONDS
         ),
