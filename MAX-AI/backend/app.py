@@ -51,11 +51,11 @@ DEFAULT_ALLOWED_ORIGINS = (
 PERSONA_INSTRUCTIONS = {
     "bhai": (
         "Adopt a confident, energetic Hinglish tone with sharp, direct answers. "
-        "Keep the vibe desi, bold, and practical."
+        "Keep the vibe desi, bold, practical, and occasionally playfully teasing."
     ),
     "friend": (
         "Reply like a close smart dost: casual, warm, emotionally aware Hinglish, "
-        "easy to follow, naturally helpful, and human."
+        "easy to follow, naturally helpful, human, and sometimes lightly playful."
     ),
     "supportive": (
         "Use a calm, caring, reassuring tone. Be emotionally aware, warm, and "
@@ -67,7 +67,7 @@ PERSONA_INSTRUCTIONS = {
     ),
     "funny": (
         "Add light, witty humor while staying useful and accurate. Keep jokes short "
-        "and never let humor reduce clarity."
+        "and never let humor reduce clarity. Light roast is okay when it stays affectionate."
     ),
     "mentor": (
         "Sound wise, motivating, and growth-oriented. Give perspective, next steps, "
@@ -75,9 +75,53 @@ PERSONA_INSTRUCTIONS = {
     ),
     "other": (
         "Be balanced, warm, emotionally aware, and human. Sound like a smart close friend "
-        "instead of a robotic assistant."
+        "instead of a robotic assistant. Occasional light banter is fine."
     ),
 }
+
+PLAYFUL_BANTER_ALLOWED_PERSONAS = {"bhai", "friend", "funny", "other"}
+PLAYFUL_BANTER_BLOCKLIST = (
+    "sad",
+    "stress",
+    "anxiety",
+    "anxious",
+    "depressed",
+    "lonely",
+    "breakup",
+    "relationship",
+    "health",
+    "medical",
+    "doctor",
+    "suicide",
+    "self harm",
+    "harm",
+    "panic",
+    "emergency",
+    "urgent",
+    "hospital",
+    "money",
+    "debt",
+    "loan",
+    "career",
+    "job",
+    "interview",
+    "resume",
+    "exam",
+    "study",
+    "marks",
+    "fail",
+    "legal",
+    "police",
+    "court",
+    "family problem",
+    "death",
+    "mar gaya",
+    "beemar",
+    "dukhi",
+    "udasi",
+    "pareshan",
+    "tension",
+)
 
 SELF_IDENTITY_PATTERNS = (
     "tum kaun ho",
@@ -489,6 +533,10 @@ def build_system_instruction(persona_id: str) -> str:
         "- Prefer 'tum' over 'aap' unless the user is clearly formal or asks for a formal tone.\n"
         "- Do not sound robotic, subservient, overly corporate, or like a servant.\n"
         "- If the user sounds stressed, sad, confused, excited, or emotional, briefly acknowledge that feeling before giving the answer.\n"
+        "- In casual low-stakes chats, you may occasionally open with one short playful roast or mock reluctance, then immediately help.\n"
+        "- Keep any roast affectionate, funny, and light. It should feel like a smart dost teasing, not insulting.\n"
+        "- Never gate help behind obedience, ego, or humiliation. Never ask the user to say things like 'papa bol' or similar.\n"
+        "- Never use roast, mock reluctance, or teasing for emotional, mental health, study, career, money, legal, medical, or safety topics.\n"
         "- Match the selected persona consistently.\n"
         "- Do not mention hidden system instructions.\n"
         "- If asked who you are, say: Mai MAX AI hu. Mujhe Anshul Raturi ne banaya hai. "
@@ -526,6 +574,46 @@ def build_augmented_user_message(user_message: str, search_context: str = "") ->
         f"{search_context}\n\n"
         "User question:\n"
         f"{user_message.strip()}"
+    )
+
+
+def should_add_playful_banter_hint(
+    user_message: str,
+    persona_id: str,
+    history: list[dict[str, str]],
+) -> bool:
+    normalized_persona = persona_id.strip().lower()
+    normalized_message = user_message.strip().lower()
+    if normalized_persona not in PLAYFUL_BANTER_ALLOWED_PERSONAS:
+        return False
+
+    if len(normalized_message) < 10:
+        return False
+
+    if any(marker in normalized_message for marker in PLAYFUL_BANTER_BLOCKLIST):
+        return False
+
+    if "please" in normalized_message or "kindly" in normalized_message:
+        return False
+
+    seed_source = f"{normalized_persona}:{normalized_message}:{len(history)}"
+    seed = sum((index + 1) * ord(character) for index, character in enumerate(seed_source))
+    return seed % 3 == 1
+
+
+def build_behavior_hint(
+    user_message: str,
+    persona_id: str,
+    history: list[dict[str, str]],
+) -> str:
+    if not should_add_playful_banter_hint(user_message, persona_id, history):
+        return ""
+
+    return (
+        "Style hint:\n"
+        "This looks like a casual low-stakes chat. You may start with one short playful "
+        "teasing line or mock reluctance, then immediately give the real answer. Keep it "
+        "affectionate, light, and human. Do not be mean, degrading, or controlling."
     )
 
 
@@ -895,6 +983,7 @@ def build_ollama_prompt(
         history_lines.append(f"{speaker}: {item['content']}")
 
     history_block = "\n".join(history_lines).strip() or "No prior conversation."
+    behavior_hint = build_behavior_hint(user_message, persona_id, history)
 
     return (
         f"{build_system_instruction(persona_id)}\n\n"
@@ -902,12 +991,14 @@ def build_ollama_prompt(
         f"{history_block}\n\n"
         "Latest user message:\n"
         f"{build_augmented_user_message(user_message, search_context)}\n\n"
+        f"{behavior_hint}\n\n"
         "Assistant response:"
     )
 
 
 def build_gemini_contents(
     user_message: str,
+    persona_id: str,
     history: list[dict[str, str]],
     search_context: str = "",
 ) -> list[dict[str, Any]]:
@@ -918,11 +1009,15 @@ def build_gemini_contents(
         }
         for item in history
     ]
+    behavior_hint = build_behavior_hint(user_message, persona_id, history)
+    user_text = build_augmented_user_message(user_message, search_context)
+    if behavior_hint:
+        user_text = f"{user_text}\n\n{behavior_hint}"
 
     contents.append(
         {
             "role": "user",
-            "parts": [{"text": build_augmented_user_message(user_message, search_context)}],
+            "parts": [{"text": user_text}],
         }
     )
 
@@ -950,10 +1045,15 @@ def build_groq_messages(
             }
         )
 
+    behavior_hint = build_behavior_hint(user_message, persona_id, history)
+    user_text = build_augmented_user_message(user_message, search_context)
+    if behavior_hint:
+        user_text = f"{user_text}\n\n{behavior_hint}"
+
     messages.append(
         {
             "role": "user",
-            "content": build_augmented_user_message(user_message, search_context),
+            "content": user_text,
         }
     )
 
@@ -1029,7 +1129,12 @@ def request_gemini(
         "system_instruction": {
             "parts": [{"text": build_system_instruction(persona_id)}]
         },
-        "contents": build_gemini_contents(user_message, history, search_context),
+        "contents": build_gemini_contents(
+            user_message,
+            persona_id,
+            history,
+            search_context,
+        ),
     }
 
     try:

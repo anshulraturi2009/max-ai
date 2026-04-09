@@ -108,6 +108,29 @@ const fallbackIntent = {
   ],
 };
 
+const playfulBanterByPersona = {
+  bhai: [
+    "Mann to tha thoda attitude dikhaun, but chal bata deta hoon.",
+    "Itna easy bhi nahi dunga, par theek hai sun.",
+    "Thoda nakhra banta hai, lekin answer bhi de raha hoon.",
+  ],
+  friend: [
+    "Mera thoda nakhra on tha, but theek hai sun.",
+    "Seedha answer de raha hoon, warna thoda aur tang karta.",
+    "Aaj thoda roast mode tha, but chal useful rehte hain.",
+  ],
+  funny: [
+    "Main thoda dramatic ho sakta tha, but chalo kaam ki baat karte hain.",
+    "Roast ka mann tha, par useful rehna zyada classy hai.",
+    "Tum lucky ho, aaj sarcasm halki setting par hai.",
+  ],
+  other: [
+    "Theek hai, thoda style maar ke batata hoon.",
+    "Mann ne bola tang kar, dimaag ne bola help kar.",
+    "Chal, halka sa nakhra side me rakh ke answer deta hoon.",
+  ],
+};
+
 const personaStyles = {
   bhai: {
     openers: [
@@ -269,6 +292,23 @@ function getOptionalEmoji(personaId, seed, intentId) {
   return emojiPool.length ? pickVariant(emojiPool, seed, 5) : "";
 }
 
+function getOptionalBanter(personaId, seed, intentId) {
+  if (!["bhai", "friend", "funny", "other"].includes(personaId)) {
+    return "";
+  }
+
+  if (!["build", "creative", "general"].includes(intentId)) {
+    return "";
+  }
+
+  if (seed % 3 !== 1) {
+    return "";
+  }
+
+  const banterPool = playfulBanterByPersona[personaId] ?? playfulBanterByPersona.other;
+  return banterPool.length ? pickVariant(banterPool, seed, 7) : "";
+}
+
 function detectIntent(message) {
   return intentMap.find((intent) => intent.match.test(message)) ?? fallbackIntent;
 }
@@ -332,10 +372,12 @@ export function createMockReply({ message, personaId = "friend", history = [] })
   const closer = pickVariant(style.closers, seed, 3);
   const actionBlock = buildActionList(intent.actions, persona.id);
   const emoji = getOptionalEmoji(persona.id, seed, intent.id);
+  const banter = getOptionalBanter(persona.id, seed, intent.id);
   const openerLine = emoji ? `${opener} ${emoji}` : opener;
+  const prefix = banter ? `${banter}\n\n` : "";
 
   if (persona.id === "bhai") {
-    return `${openerLine}
+    return `${prefix}${openerLine}
 
 ${bridge} ${intent.insight}
 
@@ -346,7 +388,7 @@ ${closer}`;
   }
 
   if (persona.id === "friend") {
-    return `${openerLine}
+    return `${prefix}${openerLine}
 
 ${bridge} ${intent.insight}
 
@@ -357,7 +399,7 @@ ${closer}`;
   }
 
   if (persona.id === "supportive") {
-    return `${openerLine}
+    return `${prefix}${openerLine}
 
 ${bridge} ${intent.insight}
 
@@ -368,7 +410,7 @@ ${closer}`;
   }
 
   if (persona.id === "formal") {
-    return `${openerLine}
+    return `${prefix}${openerLine}
 
 ${bridge} ${intent.insight}
 
@@ -379,7 +421,7 @@ ${closer}`;
   }
 
   if (persona.id === "funny") {
-    return `${openerLine}
+    return `${prefix}${openerLine}
 
 ${bridge} ${intent.insight}
 
@@ -390,7 +432,7 @@ ${closer}`;
   }
 
   if (persona.id === "mentor") {
-    return `${openerLine}
+    return `${prefix}${openerLine}
 
 ${bridge} ${intent.insight}
 
@@ -400,7 +442,7 @@ ${actionBlock}
 ${closer}`;
   }
 
-  return `${openerLine}
+  return `${prefix}${openerLine}
 
 ${bridge} ${intent.insight}
 
