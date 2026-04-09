@@ -659,7 +659,6 @@ def request_video_generation_operation(
     payload: dict[str, Any] = {
         "instances": [{"prompt": prompt}],
         "parameters": {
-            "numberOfVideos": 1,
             "resolution": configuration["resolution"],
             "aspectRatio": configuration["aspect_ratio"],
             "durationSeconds": configuration["duration_seconds"],
