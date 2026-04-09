@@ -112,6 +112,10 @@
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
   }
 
+  .mobile-top-shell {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 0.55rem);
+  }
+
   .agent-shell-panel {
     @apply rounded-[28px] border text-slate-100;
     border-color: rgba(255, 255, 255, 0.1);
@@ -158,6 +162,11 @@
 
 @media (max-width: 768px) {
   @layer components {
+    .mobile-top-shell {
+      padding-bottom: 0.4rem;
+      backdrop-filter: none;
+    }
+
     .panel,
     .input-shell,
     .agent-shell-panel,

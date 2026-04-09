@@ -56,7 +56,7 @@ export function ThemeProvider({ children }) {
 
       const themeMeta = document.querySelector('meta[name="theme-color"]');
       if (themeMeta) {
-        themeMeta.setAttribute("content", nextResolvedTheme === "light" ? "#eef4ff" : "#050816");
+        themeMeta.setAttribute("content", nextResolvedTheme === "light" ? "#eef4ff" : "#08111f");
       }
     }
   }, [themeMode]);

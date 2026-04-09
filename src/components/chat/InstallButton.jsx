@@ -7,7 +7,7 @@ import {
   subscribeInstallPrompt,
 } from "../../lib/installPrompt";
 
-export default function InstallButton() {
+export default function InstallButton({ ghostOnMobile = false }) {
   const [installState, setInstallState] = useState(getInstallState);
   const [isPrompting, setIsPrompting] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -75,6 +75,12 @@ export default function InstallButton() {
           isLight
             ? "border-emerald-200 bg-emerald-50 text-emerald-800"
             : "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
+        } ${
+          ghostOnMobile
+            ? isLight
+              ? "max-sm:border-transparent max-sm:bg-transparent max-sm:px-2.5 max-sm:shadow-none"
+              : "max-sm:border-transparent max-sm:bg-transparent max-sm:px-2.5 max-sm:shadow-none"
+            : ""
         }`}
       >
         <CheckCircle2 className="h-4 w-4" />
@@ -93,6 +99,12 @@ export default function InstallButton() {
           isLight
             ? "border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-200"
             : "border-white/10 bg-white/[0.05] text-slate-100 hover:bg-white/[0.08]"
+        } ${
+          ghostOnMobile
+            ? isLight
+              ? "max-sm:border-transparent max-sm:bg-transparent max-sm:px-2.5 max-sm:text-slate-700 max-sm:hover:bg-slate-200/55"
+              : "max-sm:border-transparent max-sm:bg-transparent max-sm:px-2.5 max-sm:text-slate-200 max-sm:hover:bg-white/[0.06]"
+            : ""
         }`}
       >
         <Download className="h-4 w-4" />
