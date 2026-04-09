@@ -22,7 +22,7 @@ function MessageContent({ content }) {
   );
 }
 
-function TypewriterContent({ content = "", durationMs = 0 }) {
+function TypewriterContent({ content = "", durationMs = 0, lowMotion = false }) {
   const [visibleLength, setVisibleLength] = useState(0);
   const normalizedContent = useMemo(() => String(content ?? ""), [content]);
 
@@ -81,12 +81,19 @@ function TypewriterContent({ content = "", durationMs = 0 }) {
     <div className="space-y-3">
       <MessageContent content={displayedContent} />
       {isTyping ? (
+        lowMotion ? (
+          <span
+            aria-hidden="true"
+            className="inline-block h-5 w-[2px] rounded-full bg-orange-400 align-middle opacity-80"
+          />
+        ) : (
         <motion.span
           aria-hidden="true"
           animate={{ opacity: [0.3, 1, 0.3] }}
           transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
           className="inline-block h-5 w-[2px] rounded-full bg-orange-400 align-middle shadow-[0_0_12px_rgba(251,146,60,0.85)]"
         />
+        )
       ) : null}
     </div>
   );
@@ -165,47 +172,64 @@ function VideoMessageCard({ message }) {
   );
 }
 
-export default function MessageBubble({ message }) {
+export default function MessageBubble({ message, lowMotion = false }) {
   const { resolvedTheme } = useTheme();
   const isLight = resolvedTheme === "light";
   const isUser = message.role === "user";
   const hasVideo = message.messageType === "video" && Boolean(message.media?.downloadUrl);
   const shouldAnimateReply =
+    !lowMotion &&
     !isUser &&
     !hasVideo &&
     message.revealStyle === "typewriter" &&
     typeof message.revealDurationMs === "number" &&
     message.revealDurationMs > 0;
+  const Shell = lowMotion ? "div" : motion.div;
+  const AvatarShell = lowMotion ? "div" : motion.div;
+  const CardShell = lowMotion ? "div" : motion.div;
 
   return (
-    <motion.div
-      layout="position"
-      initial={{ opacity: 0, y: 16, x: isUser ? 16 : -16, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -10, scale: 0.98 }}
-      transition={{
-        layout: { type: "spring", stiffness: 360, damping: 30 },
-        opacity: { duration: 0.18 },
-        x: { type: "spring", stiffness: 320, damping: 26 },
-        y: { type: "spring", stiffness: 320, damping: 26 },
-        scale: { duration: 0.18 },
-      }}
+    <Shell
+      {...(!lowMotion
+        ? {
+            layout: "position",
+            initial: { opacity: 0, y: 16, x: isUser ? 16 : -16, scale: 0.98 },
+            animate: { opacity: 1, y: 0, x: 0, scale: 1 },
+            exit: { opacity: 0, y: -10, scale: 0.98 },
+            transition: {
+              layout: { type: "spring", stiffness: 360, damping: 30 },
+              opacity: { duration: 0.18 },
+              x: { type: "spring", stiffness: 320, damping: 26 },
+              y: { type: "spring", stiffness: 320, damping: 26 },
+              scale: { duration: 0.18 },
+            },
+          }
+        : {})}
       className={`flex items-start gap-3 ${isUser ? "justify-end" : "justify-start"}`}
     >
       {!isUser ? (
-        <motion.div
-          initial={{ scale: 0.88, rotate: -10 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ delay: 0.08, type: "spring", stiffness: 240, damping: 18 }}
+        <AvatarShell
+          {...(!lowMotion
+            ? {
+                initial: { scale: 0.88, rotate: -10 },
+                animate: { scale: 1, rotate: 0 },
+                transition: {
+                  delay: 0.08,
+                  type: "spring",
+                  stiffness: 240,
+                  damping: 18,
+                },
+              }
+            : {})}
           className="relative mt-1 hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-orange-400/20 bg-gradient-to-br from-orange-500 to-orange-400 text-white shadow-[0_16px_38px_rgba(249,115,22,0.35)] sm:inline-flex"
         >
           <Bot className="h-[18px] w-[18px]" />
-        </motion.div>
+        </AvatarShell>
       ) : null}
 
       <div className={`max-w-full sm:max-w-[78%] ${isUser ? "text-right" : ""}`}>
-        <motion.div
-          whileHover={{ y: -2, scale: 1.01 }}
+        <CardShell
+          {...(!lowMotion ? { whileHover: { y: -2, scale: 1.01 } } : {})}
           className={`rounded-[26px] border px-4 py-3 text-left text-sm shadow-[0_20px_56px_rgba(8,15,35,0.25)] backdrop-blur-xl sm:px-5 sm:py-4 ${
             isUser ? "message-bubble-user" : "message-bubble-ai"
           }`}
@@ -230,6 +254,7 @@ export default function MessageBubble({ message }) {
               <TypewriterContent
                 content={message.content}
                 durationMs={message.revealDurationMs}
+                lowMotion={lowMotion}
               />
             ) : (
               <MessageContent content={message.content} />
@@ -240,19 +265,28 @@ export default function MessageBubble({ message }) {
               <VideoMessageCard message={message} />
             </div>
           ) : null}
-        </motion.div>
+        </CardShell>
       </div>
 
       {isUser ? (
-        <motion.div
-          initial={{ scale: 0.88, rotate: 10 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ delay: 0.08, type: "spring", stiffness: 240, damping: 18 }}
+        <AvatarShell
+          {...(!lowMotion
+            ? {
+                initial: { scale: 0.88, rotate: 10 },
+                animate: { scale: 1, rotate: 0 },
+                transition: {
+                  delay: 0.08,
+                  type: "spring",
+                  stiffness: 240,
+                  damping: 18,
+                },
+              }
+            : {})}
           className="relative mt-1 hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-gradient-to-br from-cyan-500 to-blue-500 text-white shadow-[0_16px_38px_rgba(34,211,238,0.28)] sm:inline-flex"
         >
           <User className="h-4 w-4" />
-        </motion.div>
+        </AvatarShell>
       ) : null}
-    </motion.div>
+    </Shell>
   );
 }

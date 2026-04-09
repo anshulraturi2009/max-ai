@@ -24,7 +24,7 @@ import {
   startVideoGeneration,
 } from "../lib/chat-api";
 
-const DEFAULT_PERSONA_ID = "other";
+const DEFAULT_PERSONA_ID = "friend";
 const TYPING_CLEAR_DELAY_MS = 120;
 const MIN_ASSISTANT_REVEAL_MS = 900;
 const MAX_ASSISTANT_REVEAL_MS = 3200;

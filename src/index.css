@@ -79,6 +79,11 @@
   html.app-shell-locked body {
     touch-action: pan-x pan-y;
   }
+
+  html.app-perf-lite *,
+  body.app-perf-lite * {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 @layer components {
@@ -171,6 +176,40 @@
     border-color: rgba(203, 213, 225, 0.95);
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(241, 245, 249, 0.95));
     box-shadow: 0 22px 58px rgba(15, 23, 42, 0.08);
+  }
+
+  html.app-perf-lite .panel,
+  html.app-perf-lite .input-shell,
+  html.app-perf-lite .agent-shell-panel,
+  html.app-perf-lite .message-bubble-user,
+  html.app-perf-lite .message-bubble-ai,
+  body.app-perf-lite .panel,
+  body.app-perf-lite .input-shell,
+  body.app-perf-lite .agent-shell-panel,
+  body.app-perf-lite .message-bubble-user,
+  body.app-perf-lite .message-bubble-ai {
+    backdrop-filter: blur(8px);
+    box-shadow: 0 12px 28px rgba(8, 15, 35, 0.16);
+  }
+
+  html.app-perf-ultra-lite .panel,
+  html.app-perf-ultra-lite .input-shell,
+  html.app-perf-ultra-lite .agent-shell-panel,
+  html.app-perf-ultra-lite .message-bubble-user,
+  html.app-perf-ultra-lite .message-bubble-ai,
+  body.app-perf-ultra-lite .panel,
+  body.app-perf-ultra-lite .input-shell,
+  body.app-perf-ultra-lite .agent-shell-panel,
+  body.app-perf-ultra-lite .message-bubble-user,
+  body.app-perf-ultra-lite .message-bubble-ai {
+    backdrop-filter: none;
+    box-shadow: 0 8px 20px rgba(8, 15, 35, 0.12);
+  }
+
+  html.app-perf-ultra-lite [class*="backdrop-blur"],
+  body.app-perf-ultra-lite [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 }
 

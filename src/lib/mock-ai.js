@@ -128,36 +128,36 @@ const personaStyles = {
   },
   friend: {
     openers: [
-      "Yaar, isko easy rakhte hain.",
-      "Haan, ye manageable hai.",
-      "Chal simple language me dekhte hain.",
+      "Yaar, aaram se dekhte hain.",
+      "Haan bhai, samajh gaya main.",
+      "Chal, isko simple aur human tareeke se dekhte hain.",
     ],
     bridges: [
-      "Best part ye hai ki isko complicated banane ki zarurat nahi hai.",
-      "Ek clean approach ye ho sakti hai.",
-      "Main tumhe short and useful version deta hoon.",
+      "Isme panic karne ki zarurat nahi hai, seedha scene samajhte hain.",
+      "Ek clean aur practical way ye ho sakta hai.",
+      "Main tumhe short, real aur useful version deta hoon.",
     ],
     closers: [
-      "Chahe to isko aur practical example ke saath bhi break kar sakte hain.",
-      "Agar tum bolo to next version aur concise bana deta hoon.",
-      "Ab ye kaafi easy feel hona chahiye.",
+      "Chahe to main isko aur real example ke saath bhi tod deta hoon.",
+      "Tu bole to next step bhi saath me nikaal dete hain.",
+      "Ab ye thoda zyada clear feel hona chahiye.",
     ],
   },
   supportive: {
     openers: [
-      "You are not behind. Let's take this one step at a time.",
-      "It's okay if this feels heavy right now. We can make it clearer.",
-      "Let's slow it down and make it manageable.",
+      "Tu behind nahi hai, bas thoda overload feel ho raha hai.",
+      "Agar ye heavy lag raha hai to wo valid hai, aaram se clear karte hain.",
+      "Chal isko dheere se manageable banate hain.",
     ],
     bridges: [
-      "The goal is not to do everything at once, just the right next move.",
-      "A calm, structured response usually helps more than a rushed one here.",
-      "We can reduce the noise and focus on what actually matters first.",
+      "Goal sab kuch ek saath solve karna nahi, bas sahi next move pakadna hai.",
+      "Yaha calm aur clear answer jaldi wale answer se zyada kaam aata hai.",
+      "Noise hata ke pehle wahi dekhte hain jo abhi actually matter karta hai.",
     ],
     closers: [
-      "If you want, I can stay with you and turn this into a small step-by-step plan.",
-      "You're allowed to do this in a simpler way than your stress is telling you.",
-      "One clear action from here is already real progress.",
+      "Tu chahe to main isko chhote step-by-step plan me bhi tod dunga.",
+      "Stress jitna bol raha hai usse simple tareeke se bhi ye ho sakta hai.",
+      "Yaha se ek clear step lena bhi real progress hai.",
     ],
   },
   formal: {
@@ -213,19 +213,19 @@ const personaStyles = {
   },
   other: {
     openers: [
-      "Let's keep this simple and useful.",
-      "Here is the direct version.",
-      "I can turn this into a clearer next step.",
+      "Theek hai, isko simple rakhte hain.",
+      "Haan, direct version batata hoon.",
+      "Chal, isko clear next step me turn karte hain.",
     ],
     bridges: [
-      "The most useful answer here is the one you can act on immediately.",
-      "Let's focus on the exact result you want.",
-      "A direct answer will help more than generic advice here.",
+      "Sabse useful answer wahi hoga jo tu abhi use kar sake.",
+      "Chal exact result par focus karte hain jo tu chahta hai.",
+      "Yaha direct answer generic gyaan se zyada help karega.",
     ],
     closers: [
-      "If you want, I can make it shorter, sharper, or more detailed.",
-      "If you share one more detail, I can make this more exact.",
-      "That should be enough to move to the next step.",
+      "Tu chahe to main isko aur short, sharp ya detailed kar dunga.",
+      "Ek aur detail dega to main isko aur exact bana dunga.",
+      "Ab isse next step lena easy hona chahiye.",
     ],
   },
 };
@@ -313,7 +313,7 @@ export function getThinkingDelay(message) {
   return Math.min(2200, Math.max(900, 700 + message.trim().length * 18));
 }
 
-export function createMockReply({ message, personaId = "other", history = [] }) {
+export function createMockReply({ message, personaId = "friend", history = [] }) {
   if (
     matchesAnyPattern(message, selfIdentityPatterns) ||
     matchesAnyPattern(message, creatorPatterns) ||

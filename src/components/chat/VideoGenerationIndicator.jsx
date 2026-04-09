@@ -32,7 +32,7 @@ function getActiveStepIndex(startedAt) {
   return 3;
 }
 
-export default function VideoGenerationIndicator({ startedAt }) {
+export default function VideoGenerationIndicator({ startedAt, lowMotion = false }) {
   const { resolvedTheme } = useTheme();
   const isLight = resolvedTheme === "light";
   const [activeStepIndex, setActiveStepIndex] = useState(() =>
@@ -44,7 +44,7 @@ export default function VideoGenerationIndicator({ startedAt }) {
 
     const intervalId = window.setInterval(() => {
       setActiveStepIndex(getActiveStepIndex(startedAt));
-    }, 1500);
+    }, lowMotion ? 2800 : 1500);
 
     return () => {
       window.clearInterval(intervalId);
@@ -55,24 +55,34 @@ export default function VideoGenerationIndicator({ startedAt }) {
     () => STATUS_STEPS[activeStepIndex] || STATUS_STEPS[0],
     [activeStepIndex],
   );
+  const Shell = lowMotion ? "div" : motion.div;
+  const AvatarShell = lowMotion ? "div" : motion.div;
 
   return (
-    <motion.div
-      layout="position"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
-      transition={{ type: "spring", stiffness: 300, damping: 28 }}
+    <Shell
+      {...(!lowMotion
+        ? {
+            layout: "position",
+            initial: { opacity: 0, y: 12 },
+            animate: { opacity: 1, y: 0 },
+            exit: { opacity: 0, y: -8 },
+            transition: { type: "spring", stiffness: 300, damping: 28 },
+          }
+        : {})}
       className="flex items-start gap-3 justify-start"
     >
-      <motion.div
-        initial={{ scale: 0.88, rotate: -10 }}
-        animate={{ scale: 1, rotate: 0 }}
-        transition={{ delay: 0.06, type: "spring", stiffness: 240, damping: 18 }}
+      <AvatarShell
+        {...(!lowMotion
+          ? {
+              initial: { scale: 0.88, rotate: -10 },
+              animate: { scale: 1, rotate: 0 },
+              transition: { delay: 0.06, type: "spring", stiffness: 240, damping: 18 },
+            }
+          : {})}
         className="relative mt-1 hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-orange-400/20 bg-gradient-to-br from-orange-500 to-orange-400 text-white shadow-[0_16px_38px_rgba(249,115,22,0.35)] sm:inline-flex"
       >
         <Film className="h-[18px] w-[18px]" />
-      </motion.div>
+      </AvatarShell>
       <div className="w-full max-w-full sm:max-w-[80%]">
         <div
           className={`rounded-[28px] border p-4 shadow-[0_20px_70px_rgba(8,15,35,0.18)] backdrop-blur-2xl sm:p-5 ${
@@ -98,15 +108,17 @@ export default function VideoGenerationIndicator({ startedAt }) {
                   : "bg-[radial-gradient(circle_at_30%_20%,rgba(56,189,248,0.2),transparent_35%),radial-gradient(circle_at_70%_75%,rgba(125,211,252,0.16),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,6,23,0.98))]"
               }`}
             />
-            <motion.div
-              animate={{ x: ["-100%", "130%"] }}
-              transition={{
-                duration: 2.2,
-                repeat: Infinity,
-                ease: "linear",
-              }}
-              className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/10 to-transparent"
-            />
+            {lowMotion ? null : (
+              <motion.div
+                animate={{ x: ["-100%", "130%"] }}
+                transition={{
+                  duration: 2.2,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
+                className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+              />
+            )}
             <div className="absolute inset-0 flex items-center justify-center">
               <div
                 className={`rounded-full px-4 py-2 text-sm backdrop-blur-xl ${
@@ -165,6 +177,6 @@ export default function VideoGenerationIndicator({ startedAt }) {
           </div>
         </div>
       </div>
-    </motion.div>
+    </Shell>
   );
 }

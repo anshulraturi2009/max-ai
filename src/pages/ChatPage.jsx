@@ -34,6 +34,7 @@ export default function ChatPage() {
   } = useChatWorkspace();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [compactVisuals, setCompactVisuals] = useState(false);
+  const [ultraLiteMode, setUltraLiteMode] = useState(false);
   const scrollContainerRef = useRef(null);
   const isThinking = thinkingState?.chatId === activeChatId;
   const thinkingStage = isThinking ? thinkingState?.stage || "thinking" : "thinking";
@@ -51,14 +52,26 @@ export default function ChatPage() {
     }
 
     const mobileQuery = window.matchMedia("(max-width: 768px)");
-    const lowPowerDevice =
-      (typeof navigator !== "undefined" &&
-        ((navigator.deviceMemory && navigator.deviceMemory <= 4) ||
-          (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 6))) ||
-      false;
+    const saveDataQuery =
+      typeof navigator !== "undefined" && navigator.connection?.saveData;
 
     const updateCompactVisuals = () => {
+      const deviceMemory =
+        typeof navigator !== "undefined" && navigator.deviceMemory
+          ? navigator.deviceMemory
+          : 8;
+      const hardwareConcurrency =
+        typeof navigator !== "undefined" && navigator.hardwareConcurrency
+          ? navigator.hardwareConcurrency
+          : 8;
+      const lowPowerDevice =
+        deviceMemory <= 4 || hardwareConcurrency <= 6 || Boolean(saveDataQuery);
+      const ultraLiteDevice =
+        mobileQuery.matches &&
+        (deviceMemory <= 2 || hardwareConcurrency <= 4 || Boolean(saveDataQuery));
+
       setCompactVisuals(Boolean(mobileQuery.matches || lowPowerDevice));
+      setUltraLiteMode(Boolean(ultraLiteDevice));
     };
 
     updateCompactVisuals();
@@ -76,12 +89,20 @@ export default function ChatPage() {
 
     document.documentElement.classList.add("app-shell-locked");
     document.body.classList.add("app-shell-locked");
+    document.documentElement.classList.toggle("app-perf-lite", compactVisuals);
+    document.body.classList.toggle("app-perf-lite", compactVisuals);
+    document.documentElement.classList.toggle("app-perf-ultra-lite", ultraLiteMode);
+    document.body.classList.toggle("app-perf-ultra-lite", ultraLiteMode);
 
     return () => {
       document.documentElement.classList.remove("app-shell-locked");
+      document.documentElement.classList.remove("app-perf-lite");
+      document.documentElement.classList.remove("app-perf-ultra-lite");
       document.body.classList.remove("app-shell-locked");
+      document.body.classList.remove("app-perf-lite");
+      document.body.classList.remove("app-perf-ultra-lite");
     };
-  }, []);
+  }, [compactVisuals, ultraLiteMode]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -91,9 +112,9 @@ export default function ChatPage() {
 
     container.scrollTo({
       top: container.scrollHeight,
-      behavior: "smooth",
+      behavior: ultraLiteMode ? "auto" : "smooth",
     });
-  }, [activeChat?.messages, isThinking]);
+  }, [activeChat?.messages, isThinking, ultraLiteMode]);
 
   async function handleSignOut() {
     await signOutUser();
@@ -143,6 +164,21 @@ export default function ChatPage() {
               transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
             />
             <ParticleBackground />
+          </>
+        ) : ultraLiteMode ? (
+          <>
+            <div
+              className={`absolute inset-0 ${
+                isLight
+                  ? "bg-[linear-gradient(180deg,#f8fbff_0%,#eef4ff_56%,#e7eefb_100%)] opacity-95"
+                  : "bg-[linear-gradient(180deg,#08111f_0%,#0b1222_56%,#060b16_100%)] opacity-95"
+              }`}
+            />
+            <div
+              className={`absolute inset-0 [background-image:linear-gradient(rgba(148,163,184,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.1)_1px,transparent_1px)] [background-size:96px_96px] ${
+                isLight ? "opacity-[0.04]" : "opacity-[0.05]"
+              }`}
+            />
           </>
         ) : (
           <>
@@ -257,20 +293,47 @@ export default function ChatPage() {
                 ) : null}
 
                 {activeChat?.messages.length ? (
-                  <AnimatePresence initial={false} mode="popLayout">
-                    {activeChat.messages.map((message) => (
-                      <MessageBubble key={message.id} message={message} />
-                    ))}
-                    {isThinking && thinkingStage === "rendering-video" ? (
-                      <VideoGenerationIndicator
-                        key="video-generation-indicator"
-                        startedAt={thinkingState?.startedAt}
-                      />
-                    ) : null}
-                    {isThinking && thinkingStage !== "rendering-video" ? (
-                      <TypingIndicator key="typing-indicator" />
-                    ) : null}
-                  </AnimatePresence>
+                  ultraLiteMode ? (
+                    <>
+                      {activeChat.messages.map((message) => (
+                        <MessageBubble
+                          key={message.id}
+                          message={message}
+                          lowMotion
+                        />
+                      ))}
+                      {isThinking && thinkingStage === "rendering-video" ? (
+                        <VideoGenerationIndicator
+                          key="video-generation-indicator"
+                          startedAt={thinkingState?.startedAt}
+                          lowMotion
+                        />
+                      ) : null}
+                      {isThinking && thinkingStage !== "rendering-video" ? (
+                        <TypingIndicator key="typing-indicator" lowMotion />
+                      ) : null}
+                    </>
+                  ) : (
+                    <AnimatePresence initial={false} mode="popLayout">
+                      {activeChat.messages.map((message) => (
+                        <MessageBubble
+                          key={message.id}
+                          message={message}
+                          lowMotion={ultraLiteMode}
+                        />
+                      ))}
+                      {isThinking && thinkingStage === "rendering-video" ? (
+                        <VideoGenerationIndicator
+                          key="video-generation-indicator"
+                          startedAt={thinkingState?.startedAt}
+                          lowMotion={ultraLiteMode}
+                        />
+                      ) : null}
+                      {isThinking && thinkingStage !== "rendering-video" ? (
+                        <TypingIndicator key="typing-indicator" lowMotion={ultraLiteMode} />
+                      ) : null}
+                    </AnimatePresence>
+                  )
                 ) : (
                   <div className="agent-shell-panel flex min-h-[340px] flex-col items-center justify-center px-6 text-center">
                     <div

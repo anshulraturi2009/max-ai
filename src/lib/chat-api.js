@@ -389,7 +389,7 @@ function createFallbackReply({ message, personaId, history }) {
 
 export async function generateAssistantReply({
   message,
-  personaId = "other",
+  personaId = "friend",
   history = [],
   signal,
 }) {
