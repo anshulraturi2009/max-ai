@@ -119,11 +119,10 @@ function shouldUseRedirectSignIn() {
     return false;
   }
 
-  const standaloneMode = window.matchMedia?.("(display-mode: standalone)")?.matches;
   const userAgent = window.navigator?.userAgent || "";
   const iosDevice = /iPhone|iPad|iPod/i.test(userAgent);
 
-  return Boolean(standaloneMode || iosDevice);
+  return iosDevice;
 }
 
 async function hydrateSignedInUser(firebaseUser, sessionUser = null) {
