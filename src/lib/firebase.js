@@ -7,27 +7,9 @@ import {
   setPersistence,
 } from "firebase/auth";
 
-function resolveFirebaseAuthDomain(defaultDomain) {
-  if (typeof window === "undefined") {
-    return defaultDomain;
-  }
-
-  const hostname = window.location.hostname;
-  const isLocalhost =
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "[::1]";
-
-  if (isLocalhost || !hostname) {
-    return defaultDomain;
-  }
-
-  return hostname;
-}
-
 const firebaseCoreConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: resolveFirebaseAuthDomain(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
