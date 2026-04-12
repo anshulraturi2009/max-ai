@@ -57,7 +57,7 @@ export default function GoogleAuthCard() {
   }
 
   return (
-    <div className="w-full rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-[0_18px_50px_rgba(0,0,0,0.28)] sm:p-7">
+    <div className="w-full rounded-[30px] border border-slate-700 bg-slate-950 p-6 shadow-[0_26px_80px_rgba(2,6,23,0.62)] sm:p-7">
       <p className="mb-4 text-xs uppercase tracking-[0.28em] text-slate-400">
         Google auth
       </p>
@@ -91,7 +91,7 @@ export default function GoogleAuthCard() {
       </button>
 
       {error ? (
-        <p className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        <p className="mt-4 rounded-2xl border border-rose-400/25 bg-rose-950 px-4 py-3 text-sm text-rose-200">
           {error}
         </p>
       ) : null}

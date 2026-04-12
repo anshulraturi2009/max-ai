@@ -94,7 +94,7 @@ export default function ProfileAccessCard() {
     "w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-slate-600";
 
   return (
-    <div className="w-full rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-[0_18px_50px_rgba(0,0,0,0.28)] sm:p-7">
+    <div className="w-full rounded-[30px] border border-slate-700 bg-slate-950 p-6 shadow-[0_26px_80px_rgba(2,6,23,0.62)] sm:p-7">
       <div>
         <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
           Google onboarding
@@ -110,7 +110,7 @@ export default function ProfileAccessCard() {
         </p>
 
         {user?.email ? (
-          <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-slate-300">
+          <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-300">
             Signed in as <span className="font-medium text-white">{user.email}</span>
           </div>
         ) : null}
@@ -192,7 +192,7 @@ export default function ProfileAccessCard() {
         </button>
 
         {error ? (
-          <p className="mt-4 rounded-xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+          <p className="mt-4 rounded-xl border border-rose-400/25 bg-rose-950 px-4 py-3 text-sm text-rose-200">
             {error}
           </p>
         ) : null}

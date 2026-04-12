@@ -94,14 +94,16 @@ export default function AuthShowcase() {
   }, [prefersReducedMotion, sceneIndex]);
 
   return (
-    <div className="relative min-h-[420px] overflow-hidden rounded-[36px] border border-white/10 bg-slate-950/40 shadow-[0_32px_100px_rgba(2,6,23,0.55)] backdrop-blur-xl">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,107,53,0.16),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.16),transparent_34%),linear-gradient(180deg,rgba(8,17,31,0.96),rgba(6,11,22,0.94))]" />
+    <div className="relative min-h-[640px] overflow-hidden rounded-[40px] border border-white/10 bg-slate-950/55 shadow-[0_36px_120px_rgba(2,6,23,0.62)] backdrop-blur-xl">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,107,53,0.22),transparent_28%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.18),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(74,222,128,0.12),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.18),transparent_30%),linear-gradient(180deg,rgba(8,17,31,0.96),rgba(6,11,22,0.94))]" />
       <div className="absolute inset-0 opacity-[0.08] [background-image:linear-gradient(rgba(148,163,184,0.9)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.9)_1px,transparent_1px)] [background-size:72px_72px]" />
 
-      <div className="absolute -left-10 top-10 h-32 w-32 rounded-full bg-orange-500/20 blur-3xl" />
-      <div className="absolute bottom-0 right-8 h-40 w-40 rounded-full bg-cyan-400/15 blur-3xl" />
+      <div className="absolute -left-10 top-10 h-40 w-40 rounded-full bg-orange-500/24 blur-3xl" />
+      <div className="absolute right-[12%] top-[12%] h-36 w-36 rounded-full bg-cyan-400/20 blur-3xl" />
+      <div className="absolute bottom-[10%] left-[10%] h-36 w-36 rounded-full bg-emerald-400/14 blur-3xl" />
+      <div className="absolute bottom-0 right-8 h-44 w-44 rounded-full bg-blue-500/18 blur-3xl" />
 
-      <div className="relative flex h-full min-h-[420px] flex-col lg:flex-row">
+      <div className="relative flex h-full min-h-[640px] flex-col lg:flex-row">
         <div className="flex w-full flex-col border-b border-white/10 p-5 lg:w-[220px] lg:border-b-0 lg:border-r">
           <div className="flex items-center gap-2">
             <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/[0.05] text-orange-300">
@@ -161,7 +163,7 @@ export default function AuthShowcase() {
           </div>
         </div>
 
-        <div className="flex min-h-[420px] flex-1 flex-col p-5 sm:p-6">
+        <div className="flex min-h-[640px] flex-1 flex-col p-5 sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-300">
               <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(74,222,128,0.9)]" />
